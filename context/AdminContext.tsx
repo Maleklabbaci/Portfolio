@@ -88,18 +88,39 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+// Helper for safe storage access to prevent crashes
+const safeStorage = {
+  getItem: (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.warn('LocalStorage access denied/failed', e);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.warn('LocalStorage write failed', e);
+    }
+  }
+};
+
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Persistance de l'état Admin
+  // Persistance de l'état Admin avec gestion d'erreurs
   const [isAdmin, setIsAdmin] = useState(() => {
-    const saved = localStorage.getItem('ivision_is_admin');
+    const saved = safeStorage.getItem('ivision_is_admin');
     return saved === 'true';
   });
 
-  // Persistance des Projets
+  // Persistance des Projets avec gestion d'erreurs
   const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = localStorage.getItem('ivision_projects');
+    const saved = safeStorage.getItem('ivision_projects');
     try {
-      return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
+      const parsed = saved ? JSON.parse(saved) : null;
+      // Ensure we have an array
+      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_PROJECTS;
     } catch (e) {
       return INITIAL_PROJECTS;
     }
@@ -107,11 +128,11 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // Sauvegarde automatique lors des changements
   useEffect(() => {
-    localStorage.setItem('ivision_is_admin', String(isAdmin));
+    safeStorage.setItem('ivision_is_admin', String(isAdmin));
   }, [isAdmin]);
 
   useEffect(() => {
-    localStorage.setItem('ivision_projects', JSON.stringify(projects));
+    safeStorage.setItem('ivision_projects', JSON.stringify(projects));
   }, [projects]);
 
   const login = (password: string) => {
