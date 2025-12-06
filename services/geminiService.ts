@@ -1,12 +1,28 @@
 import { GoogleGenAI } from "@google/genai";
 
-// Initialize the Gemini API client
-// Ideally, in a real production env, this key comes from a secure backend proxy.
-// For this frontend demo, we assume the environment variable is injected.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Helper to safely get API key without crashing
+const getApiKey = () => {
+  try {
+    if (typeof process !== 'undefined' && process.env && process.env.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error
+  }
+  return undefined;
+};
 
 export const generateAgencyResponse = async (userMessage: string): Promise<string> => {
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    console.warn("Gemini API Key is missing. AI Chat disabled.");
+    return "L'assistant virtuel est momentanément indisponible (Configuration requise). Veuillez nous envoyer un email via le formulaire.";
+  }
+
   try {
+    // Initialize client only when needed to prevent startup crashes
+    const ai = new GoogleGenAI({ apiKey });
     const model = 'gemini-2.5-flash';
     
     const response = await ai.models.generateContent({

@@ -2,13 +2,13 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Project, ProjectCategory } from '../types';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
-// Données de secours (Mode Démo)
+// Données de secours (Mode Démo) avec URLs fiables
 const FALLBACK_PROJECTS: Project[] = [
   {
     id: '1',
     title: 'Neon Energy Drink',
     category: ProjectCategory.REELS,
-    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1626806819282-2c1dc01a5e0c?q=80&w=1000&auto=format&fit=crop',
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     client: 'NeonEnergy',
     size: 'tall',
@@ -18,7 +18,7 @@ const FALLBACK_PROJECTS: Project[] = [
     id: '2',
     title: 'Luxe Automotive',
     category: ProjectCategory.VIDEO,
-    imageUrl: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1000&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1503376763036-066120622c74?q=80&w=1000&auto=format&fit=crop',
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     client: 'LuxeAuto',
     size: 'wide',
@@ -45,12 +45,15 @@ const FALLBACK_PROJECTS: Project[] = [
     id: '5',
     title: 'Fashion Week Coverage',
     category: ProjectCategory.REELS,
-    imageUrl: 'https://images.unsplash.com/photo-1537832816519-689ad163238b?q=80&w=1000&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177f011a859?q=80&w=1000&auto=format&fit=crop',
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     client: 'VogueLocal',
     size: 'tall'
   }
 ];
+
+// Version des données pour forcer le nettoyage du cache si nécessaire
+const DATA_VERSION = 'v3';
 
 interface AdminContextType {
   isAdmin: boolean;
@@ -84,11 +87,16 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     // MODE DÉMO (Si pas de clés API)
     if (!isSupabaseConfigured) {
       console.log("Supabase non configuré : Chargement du mode démo local.");
-      // Petit délai simulé pour la fluidité UX, mais très court
-      setTimeout(() => {
-        setProjects(FALLBACK_PROJECTS);
-        setIsLoading(false);
-      }, 100);
+      
+      // Check version to maybe reset localstorage data if we were using it
+      const storedVersion = localStorage.getItem('ivision_data_version');
+      if (storedVersion !== DATA_VERSION) {
+         localStorage.removeItem('ivision_local_projects'); // Clear old data
+         localStorage.setItem('ivision_data_version', DATA_VERSION);
+      }
+
+      setProjects(FALLBACK_PROJECTS);
+      setIsLoading(false);
       return;
     }
 
@@ -106,8 +114,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .order('created_at', { ascending: false });
 
       if (error) {
-        // En cas d'erreur explicite de Supabase
-        console.warn("Erreur Supabase, bascule sur backup:", error.message);
+        console.warn("Erreur Supabase:", error.message || error);
         setProjects(FALLBACK_PROJECTS);
       } else {
         const formattedProjects: Project[] = data.map((p: any) => ({
@@ -123,9 +130,9 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         }));
         setProjects(formattedProjects);
       }
-    } catch (e) {
-      // En cas d'erreur réseau grave
-      console.error("Erreur critique chargement données:", e);
+    } catch (e: any) {
+      // Improved error logging
+      console.error("Erreur critique chargement données:", e?.message || e);
       setProjects(FALLBACK_PROJECTS);
     } finally {
       setIsLoading(false);
@@ -152,12 +159,9 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // --- CRUD ACTIONS ---
-  // Ces fonctions vérifient la configuration avant d'agir
-
   const addProject = async (project: Project) => {
     if (!isSupabaseConfigured) {
       alert("Mode DÉMO : Connectez Supabase pour sauvegarder réellement.");
-      // Simulation locale pour l'UX
       setProjects(prev => [project, ...prev]);
       return;
     }
@@ -261,7 +265,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       await fetchProjects();
     } catch (error: any) {
       console.error("Error deleting project:", error);
-      alert(`Erreur: ${error.message}`);
+      alert(`Erreur: ${error.message || 'Erreur suppression'}`);
     }
   };
 
