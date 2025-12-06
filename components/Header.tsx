@@ -20,15 +20,15 @@ export const Header: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Lock scroll when login modal is open
+  // Lock scroll when login modal or mobile menu is open
   useEffect(() => {
-    if (isLoginOpen) {
+    if (isLoginOpen || isMobileMenuOpen) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
     }
     return () => { document.body.style.overflow = 'unset'; };
-  }, [isLoginOpen]);
+  }, [isLoginOpen, isMobileMenuOpen]);
 
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -72,34 +72,36 @@ export const Header: React.FC = () => {
 
           {/* Mobile Toggle */}
           <button 
-            className="md:hidden z-50 text-brand-black"
+            className="md:hidden z-50 text-brand-black w-10 h-10 flex items-center justify-center"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? <X /> : <Menu />}
           </button>
         </div>
 
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="fixed inset-0 bg-white flex flex-col items-center justify-center gap-8 z-40 animate-fade-in">
-             <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Work</a>
-             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Performance</a>
-             <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Contact</a>
-             <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="text-gray-400 mt-8 text-sm">Admin Access</button>
-          </div>
-        )}
+        {/* Mobile Menu with Fade Transition */}
+        <div className={`fixed inset-0 bg-white/95 backdrop-blur-xl flex flex-col items-center justify-center gap-8 z-40 transition-all duration-300 ease-in-out ${
+          isMobileMenuOpen 
+            ? 'opacity-100 visible translate-y-0' 
+            : 'opacity-0 invisible translate-y-4 pointer-events-none'
+        }`}>
+           <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black hover:text-brand-accent transition-colors">Work</a>
+           <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black hover:text-brand-accent transition-colors">Performance</a>
+           <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black hover:text-brand-accent transition-colors">Contact</a>
+           <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="text-gray-400 mt-8 text-sm hover:text-brand-black transition-colors">Admin Access</button>
+        </div>
       </header>
 
       {/* Login Modal */}
       {isLoginOpen && (
         <div 
-          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-300"
           onClick={(e) => { if(e.target === e.currentTarget) setIsLoginOpen(false); }}
         >
           <div className="bg-white rounded-2xl p-8 max-w-sm w-full relative shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={() => setIsLoginOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-brand-black"
+              className="absolute top-4 right-4 text-gray-400 hover:text-brand-black transition-colors"
             >
               <X />
             </button>
@@ -123,7 +125,7 @@ export const Header: React.FC = () => {
               {error && <p className="text-red-500 text-xs mb-4 text-center font-medium">Mot de passe incorrect</p>}
               <button 
                 type="submit"
-                className="w-full bg-brand-black text-white hover:bg-brand-accent font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl"
+                className="w-full bg-brand-black text-white hover:bg-brand-accent font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl active:scale-95"
               >
                 Connexion
               </button>

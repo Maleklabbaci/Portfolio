@@ -1,84 +1,28 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
+import { supabase } from '../services/supabaseClient';
 
-// VERSION DU STORAGE
-// Changer cette valeur force la réinitialisation des données chez tous les utilisateurs
-// Utile si on change la structure des objets Project et que les vieilles données font planter le site.
-const DATA_VERSION = 'v2_fix_init';
-
-// Données initiales
-const INITIAL_PROJECTS: Project[] = [
+// Données de secours si Supabase n'est pas configuré
+const FALLBACK_PROJECTS: Project[] = [
   {
     id: '1',
-    title: 'Summer Vibes Reel',
+    title: 'Exemple Summer Vibes',
     category: ProjectCategory.REELS,
     imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-girl-in-neon-sign-1232-large.mp4',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     client: 'NeonEnergy',
     size: 'tall',
     metrics: [{ label: 'Vues', value: '2.4M' }]
   },
   {
     id: '2',
-    title: 'Cinematic Brand Movie',
+    title: 'Exemple Cinematic Brand',
     category: ProjectCategory.VIDEO,
     imageUrl: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1000&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-1610-large.mp4',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     client: 'LuxeAuto',
     size: 'wide'
-  },
-  {
-    id: '3',
-    title: 'Performance Campaign',
-    category: ProjectCategory.ADS,
-    imageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?q=80&w=1000&auto=format&fit=crop',
-    client: 'TechStart',
-    metrics: [{ label: 'ROAS', value: '8.5x' }, { label: 'Revenue', value: '45k€' }],
-    size: 'normal'
-  },
-  {
-    id: '4',
-    title: 'Editorial Shoot',
-    category: ProjectCategory.PHOTO,
-    imageUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=1000&auto=format&fit=crop',
-    client: 'Vogue Like',
-    size: 'tall'
-  },
-  {
-    id: '5',
-    title: 'TikTok Viral',
-    category: ProjectCategory.REELS,
-    imageUrl: 'https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=1000&auto=format&fit=crop',
-    videoUrl: 'https://assets.mixkit.co/videos/preview/mixkit-vertical-shot-of-a-woman-running-on-a-bridge-40245-large.mp4',
-    client: 'FastFashion',
-    size: 'tall',
-    metrics: [{ label: 'Likes', value: '150k' }]
-  },
-  {
-    id: '6',
-    title: 'UI/UX Mobile App',
-    category: ProjectCategory.DESIGN,
-    imageUrl: 'https://images.unsplash.com/photo-1581291518633-83b4ebd1d83e?q=80&w=1000&auto=format&fit=crop',
-    client: 'BankApp',
-    size: 'normal'
-  },
-  {
-    id: '7',
-    title: 'Corporate Film',
-    category: ProjectCategory.VIDEO,
-    imageUrl: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?q=80&w=1000&auto=format&fit=crop',
-    client: 'ConstructCorp',
-    size: 'wide'
-  },
-   {
-    id: '8',
-    title: 'Facebook Ads Scale',
-    category: ProjectCategory.ADS,
-    imageUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?q=80&w=1000&auto=format&fit=crop',
-    client: 'E-com Brand',
-    size: 'normal',
-    metrics: [{ label: 'CPA', value: '-40%' }, { label: 'Scale', value: '10k/day' }]
-  },
+  }
 ];
 
 interface AdminContextType {
@@ -86,83 +30,78 @@ interface AdminContextType {
   login: (password: string) => boolean;
   logout: () => void;
   projects: Project[];
-  addProject: (project: Project) => void;
-  updateProject: (project: Project) => void;
-  deleteProject: (id: string) => void;
+  isLoading: boolean;
+  addProject: (project: Project) => Promise<void>;
+  updateProject: (project: Project) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-// Helper for safe storage access to prevent crashes
-const safeStorage = {
-  getItem: (key: string) => {
-    try {
-      return localStorage.getItem(key);
-    } catch (e) {
-      console.warn('LocalStorage access denied/failed', e);
-      return null;
-    }
-  },
-  setItem: (key: string, value: string) => {
-    try {
-      localStorage.setItem(key, value);
-    } catch (e) {
-      console.warn('LocalStorage write failed', e);
-    }
-  }
-};
-
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // --- GESTION DE LA VERSION DES DONNÉES ---
-  useEffect(() => {
-    const currentVersion = safeStorage.getItem('ivision_version');
-    if (currentVersion !== DATA_VERSION) {
-      console.log('Detected version mismatch or first run. Resetting data to default.');
-      safeStorage.setItem('ivision_version', DATA_VERSION);
-      // On écrase les projets existants avec les initiaux pour éviter les bugs de structure
-      safeStorage.setItem('ivision_projects', JSON.stringify(INITIAL_PROJECTS));
-      // On force un reload des projets dans le state
-      setProjects(INITIAL_PROJECTS);
+  const [isAdmin, setIsAdmin] = useState(() => {
+    try {
+      return localStorage.getItem('ivision_is_admin') === 'true';
+    } catch {
+      return false;
     }
+  });
+
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // --- FETCH PROJECTS FROM SUPABASE ---
+  const fetchProjects = async () => {
+    setIsLoading(true);
+    try {
+      // On récupère les projets ET leurs métriques associées
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          project_metrics (
+            label,
+            value
+          )
+        `)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error("Error fetching projects:", error);
+        // Si erreur (ex: mauvaise config), on charge le fallback pour que le site marche quand même
+        setProjects(FALLBACK_PROJECTS);
+      } else {
+        // Transformation des données Supabase pour matcher notre type Project
+        const formattedProjects: Project[] = data.map((p: any) => ({
+          id: p.id.toString(),
+          title: p.title,
+          category: p.category as ProjectCategory,
+          imageUrl: p.image_url,
+          videoUrl: p.video_url,
+          client: p.client,
+          description: p.description,
+          size: p.size,
+          metrics: p.project_metrics || []
+        }));
+        setProjects(formattedProjects);
+      }
+    } catch (e) {
+      console.error("Supabase connection failed:", e);
+      setProjects(FALLBACK_PROJECTS);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
   }, []);
 
-  // --- STATE INITIALIZATION ---
-  const [isAdmin, setIsAdmin] = useState(() => {
-    const saved = safeStorage.getItem('ivision_is_admin');
-    return saved === 'true';
-  });
-
-  const [projects, setProjects] = useState<Project[]>(() => {
-    const saved = safeStorage.getItem('ivision_projects');
-    try {
-      if (!saved) return INITIAL_PROJECTS;
-      const parsed = JSON.parse(saved);
-      // Validation stricte : doit être un tableau non vide
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
-      }
-      return INITIAL_PROJECTS;
-    } catch (e) {
-      console.error("Failed to parse projects from storage", e);
-      return INITIAL_PROJECTS;
-    }
-  });
-
-  // --- PERSISTENCE ---
-  useEffect(() => {
-    safeStorage.setItem('ivision_is_admin', String(isAdmin));
-  }, [isAdmin]);
-
-  useEffect(() => {
-    if (projects && projects.length > 0) {
-       safeStorage.setItem('ivision_projects', JSON.stringify(projects));
-    }
-  }, [projects]);
-
-  // --- ACTIONS ---
+  // --- AUTH SIMPLE (UI Only) ---
   const login = (password: string) => {
     if (password === 'admin') {
       setIsAdmin(true);
+      localStorage.setItem('ivision_is_admin', 'true');
       return true;
     }
     return false;
@@ -170,22 +109,109 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   const logout = () => {
     setIsAdmin(false);
+    localStorage.removeItem('ivision_is_admin');
   };
 
-  const addProject = (project: Project) => {
-    setProjects((prev) => [project, ...prev]);
+  // --- CRUD ACTIONS ---
+
+  const addProject = async (project: Project) => {
+    try {
+      // 1. Insert Project
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .insert([{
+          title: project.title,
+          category: project.category,
+          image_url: project.imageUrl,
+          video_url: project.videoUrl,
+          client: project.client,
+          description: project.description,
+          size: project.size
+        }])
+        .select()
+        .single();
+
+      if (projectError) throw projectError;
+
+      // 2. Insert Metrics if any
+      if (project.metrics && project.metrics.length > 0) {
+        const metricsToInsert = project.metrics.map(m => ({
+          project_id: projectData.id,
+          label: m.label,
+          value: m.value
+        }));
+        
+        const { error: metricsError } = await supabase
+          .from('project_metrics')
+          .insert(metricsToInsert);
+
+        if (metricsError) throw metricsError;
+      }
+
+      await fetchProjects(); // Refresh UI
+    } catch (error) {
+      console.error("Error adding project:", error);
+      alert("Erreur lors de l'ajout sur Supabase");
+    }
   };
 
-  const updateProject = (updatedProject: Project) => {
-    setProjects((prev) => prev.map(p => p.id === updatedProject.id ? updatedProject : p));
+  const updateProject = async (project: Project) => {
+    try {
+      // 1. Update Project Fields
+      const { error: projectError } = await supabase
+        .from('projects')
+        .update({
+          title: project.title,
+          category: project.category,
+          image_url: project.imageUrl,
+          video_url: project.videoUrl,
+          client: project.client,
+          description: project.description,
+          size: project.size
+        })
+        .eq('id', project.id);
+
+      if (projectError) throw projectError;
+
+      // 2. Update Metrics (Strategy: Delete all old, Insert new)
+      // Delete old metrics
+      await supabase.from('project_metrics').delete().eq('project_id', project.id);
+
+      // Insert new ones
+      if (project.metrics && project.metrics.length > 0) {
+        const metricsToInsert = project.metrics.map(m => ({
+          project_id: project.id,
+          label: m.label,
+          value: m.value
+        }));
+        await supabase.from('project_metrics').insert(metricsToInsert);
+      }
+
+      await fetchProjects(); // Refresh UI
+    } catch (error) {
+      console.error("Error updating project:", error);
+      alert("Erreur lors de la mise à jour");
+    }
   };
 
-  const deleteProject = (id: string) => {
-    setProjects((prev) => prev.filter(p => p.id !== id));
+  const deleteProject = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      
+      await fetchProjects(); // Refresh UI
+    } catch (error) {
+      console.error("Error deleting project:", error);
+      alert("Erreur lors de la suppression");
+    }
   };
 
   return (
-    <AdminContext.Provider value={{ isAdmin, login, logout, projects, addProject, updateProject, deleteProject }}>
+    <AdminContext.Provider value={{ isAdmin, login, logout, projects, isLoading, addProject, updateProject, deleteProject }}>
       {children}
     </AdminContext.Provider>
   );

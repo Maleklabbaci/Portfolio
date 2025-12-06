@@ -76,12 +76,17 @@ export const PortfolioGallery: React.FC = () => {
       const video = e.currentTarget.querySelector('video');
       if (video) {
         try {
+          // If video previously errored, don't try to play
+          if (video.error) return;
+
           video.currentTime = 0;
           await video.play();
         } catch (err) {
           // Ignore AbortError which happens when mouse leaves quickly
-          if ((err as Error).name !== 'AbortError') {
-            console.error("Video preview playback failed", err);
+          // Also ignore NotSupportedError which happens if source is missing/bad
+          const errorName = (err as Error).name;
+          if (errorName !== 'AbortError' && errorName !== 'NotSupportedError') {
+            console.warn("Video preview playback prevented:", errorName);
           }
         }
       }
@@ -92,7 +97,11 @@ export const PortfolioGallery: React.FC = () => {
     if (hasVideo) {
       const video = e.currentTarget.querySelector('video');
       if (video) {
-        video.pause();
+        try {
+          video.pause();
+        } catch (e) {
+          // Ignore pause errors
+        }
       }
     }
   };
@@ -159,6 +168,10 @@ export const PortfolioGallery: React.FC = () => {
                     loop
                     playsInline
                     preload="none"
+                    onError={(e) => {
+                      // Hide video element on error so it doesn't block the image
+                      e.currentTarget.style.display = 'none';
+                    }}
                     className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"
                   />
                 )}
