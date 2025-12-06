@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Header } from './components/Header';
 import { Hero } from './components/Hero';
@@ -11,7 +10,7 @@ import { AdminProvider } from './context/AdminContext';
 function App() {
   return (
     <AdminProvider>
-      <div className="bg-brand-dark min-h-screen text-white selection:bg-brand-accent selection:text-white font-sans">
+      <div className="bg-white min-h-screen text-brand-dark selection:bg-brand-accent selection:text-white font-sans">
         <Header />
         <main>
           <Hero />

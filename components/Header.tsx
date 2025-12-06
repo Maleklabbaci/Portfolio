@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Lock, Unlock, LogOut } from 'lucide-react';
+import { Menu, X, Lock, LogOut } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
 export const Header: React.FC = () => {
@@ -15,7 +14,7 @@ export const Header: React.FC = () => {
 
   useEffect(() => {
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 50);
+      setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
@@ -34,28 +33,28 @@ export const Header: React.FC = () => {
 
   return (
     <>
-      <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 mix-blend-difference text-white ${
-        isScrolled ? 'py-4' : 'py-6'
+      <header className={`fixed top-0 left-0 w-full z-50 transition-all duration-300 ${
+        isScrolled ? 'bg-white/80 backdrop-blur-md py-4 shadow-sm border-b border-gray-100' : 'bg-transparent py-6'
       }`}>
         <div className="container mx-auto px-4 flex justify-between items-center">
           {/* Logo */}
-          <a href="#" className="text-xl font-bold tracking-tight z-50">
-            iVision<span className="text-brand-accent">.</span>
+          <a href="#" className="text-2xl font-black tracking-tighter z-50 text-brand-black">
+            iVISION<span className="text-brand-accent">.</span>
           </a>
 
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-8">
-            <a href="#work" className="text-sm font-bold uppercase tracking-widest hover:text-brand-accent transition-colors">Work</a>
-            <a href="#performance" className="text-sm font-bold uppercase tracking-widest hover:text-brand-accent transition-colors">Performance</a>
-            <a href="#contact" className="text-sm font-bold uppercase tracking-widest hover:text-brand-accent transition-colors">Contact</a>
+            <a href="#work" className="text-sm font-semibold text-gray-600 hover:text-brand-accent transition-colors">Work</a>
+            <a href="#performance" className="text-sm font-semibold text-gray-600 hover:text-brand-accent transition-colors">Performance</a>
+            <a href="#contact" className="text-sm font-semibold text-gray-600 hover:text-brand-accent transition-colors">Contact</a>
             
             {/* Admin Toggle */}
             {isAdmin ? (
-               <button onClick={logout} className="text-red-500 hover:text-white transition-colors flex items-center gap-1 text-xs uppercase font-bold border border-red-500/50 rounded px-2 py-1">
+               <button onClick={logout} className="text-red-500 hover:text-red-600 transition-colors flex items-center gap-1 text-xs uppercase font-bold border border-red-200 bg-red-50 rounded px-3 py-1.5">
                  <LogOut className="w-3 h-3" /> Sortir
                </button>
             ) : (
-               <button onClick={() => setIsLoginOpen(true)} className="text-gray-500 hover:text-white transition-colors">
+               <button onClick={() => setIsLoginOpen(true)} className="text-gray-400 hover:text-brand-accent transition-colors">
                  <Lock className="w-4 h-4" />
                </button>
             )}
@@ -63,7 +62,7 @@ export const Header: React.FC = () => {
 
           {/* Mobile Toggle */}
           <button 
-            className="md:hidden z-50"
+            className="md:hidden z-50 text-brand-black"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
             {isMobileMenuOpen ? <X /> : <Menu />}
@@ -72,32 +71,31 @@ export const Header: React.FC = () => {
 
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
-          <div className="fixed inset-0 bg-brand-dark flex flex-col items-center justify-center gap-8 z-40">
-             <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold uppercase tracking-widest">Work</a>
-             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold uppercase tracking-widest">Performance</a>
-             <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="text-2xl font-bold uppercase tracking-widest">Contact</a>
-             <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="text-gray-500 mt-8">Admin Access</button>
+          <div className="fixed inset-0 bg-white flex flex-col items-center justify-center gap-8 z-40 animate-fade-in">
+             <a href="#work" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Work</a>
+             <a href="#performance" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Performance</a>
+             <a href="#contact" onClick={() => setIsMobileMenuOpen(false)} className="text-3xl font-bold text-brand-black">Contact</a>
+             <button onClick={() => { setIsMobileMenuOpen(false); setIsLoginOpen(true); }} className="text-gray-400 mt-8 text-sm">Admin Access</button>
           </div>
         )}
       </header>
 
       {/* Login Modal */}
       {isLoginOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/90 flex items-center justify-center p-4">
-          <div className="bg-brand-dark border border-gray-800 rounded-xl p-8 max-w-sm w-full relative">
+        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full relative shadow-2xl animate-fade-in">
             <button 
               onClick={() => setIsLoginOpen(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white"
+              className="absolute top-4 right-4 text-gray-400 hover:text-brand-black"
             >
               <X />
             </button>
             
             <div className="flex flex-col items-center mb-6">
-              <div className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center mb-4">
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-4">
                 <Lock className="w-6 h-6 text-brand-accent" />
               </div>
-              <h3 className="text-xl font-bold text-white">Espace Admin</h3>
-              <p className="text-gray-500 text-sm">Mot de passe requis</p>
+              <h3 className="text-xl font-bold text-brand-black">Espace Admin</h3>
             </div>
 
             <form onSubmit={handleLoginSubmit}>
@@ -105,19 +103,18 @@ export const Header: React.FC = () => {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="Entrez le mot de passe"
-                className="w-full bg-gray-900 border border-gray-700 text-white px-4 py-3 rounded-lg mb-4 focus:outline-none focus:border-brand-accent"
+                placeholder="Mot de passe"
+                className="w-full bg-gray-50 border border-gray-200 text-brand-black px-4 py-3 rounded-lg mb-4 focus:outline-none focus:border-brand-accent focus:ring-2 focus:ring-blue-100 transition-all"
                 autoFocus
               />
-              {error && <p className="text-red-500 text-xs mb-4 text-center">Mot de passe incorrect</p>}
+              {error && <p className="text-red-500 text-xs mb-4 text-center font-medium">Mot de passe incorrect</p>}
               <button 
                 type="submit"
-                className="w-full bg-brand-accent hover:bg-indigo-600 text-white font-bold py-3 rounded-lg transition-colors"
+                className="w-full bg-brand-black text-white hover:bg-brand-accent font-bold py-3 rounded-lg transition-colors shadow-lg hover:shadow-xl"
               >
                 Connexion
               </button>
             </form>
-             <p className="text-center text-gray-700 text-xs mt-4">Hint: admin</p>
           </div>
         </div>
       )}
