@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
 
 // Données initiales (anciennement dans PortfolioGallery)
@@ -89,11 +89,32 @@ interface AdminContextType {
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [projects, setProjects] = useState<Project[]>(INITIAL_PROJECTS);
+  // Persistance de l'état Admin
+  const [isAdmin, setIsAdmin] = useState(() => {
+    const saved = localStorage.getItem('ivision_is_admin');
+    return saved === 'true';
+  });
+
+  // Persistance des Projets
+  const [projects, setProjects] = useState<Project[]>(() => {
+    const saved = localStorage.getItem('ivision_projects');
+    try {
+      return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
+    } catch (e) {
+      return INITIAL_PROJECTS;
+    }
+  });
+
+  // Sauvegarde automatique lors des changements
+  useEffect(() => {
+    localStorage.setItem('ivision_is_admin', String(isAdmin));
+  }, [isAdmin]);
+
+  useEffect(() => {
+    localStorage.setItem('ivision_projects', JSON.stringify(projects));
+  }, [projects]);
 
   const login = (password: string) => {
-    // Mot de passe hardcodé pour la démo
     if (password === 'admin') {
       setIsAdmin(true);
       return true;

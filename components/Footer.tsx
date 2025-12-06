@@ -1,16 +1,31 @@
 import React from 'react';
-import { Instagram, Linkedin, Twitter, Mail } from 'lucide-react';
+import { Instagram, Linkedin, Twitter, Mail, ArrowUp } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
-    <footer className="bg-brand-dark pt-24 pb-12">
+    <footer className="bg-brand-dark pt-24 pb-12 relative">
       <div className="container mx-auto px-4">
+        
+        {/* Lazy Back to Top */}
+        <div className="absolute top-0 right-8 -translate-y-1/2">
+          <button 
+            onClick={scrollToTop}
+            className="bg-brand-accent text-white w-16 h-16 rounded-full flex items-center justify-center shadow-2xl hover:bg-white hover:text-brand-accent transition-all duration-300 active:scale-90 group"
+          >
+            <ArrowUp className="w-8 h-8 group-hover:-translate-y-1 transition-transform" />
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-20">
           <div className="col-span-1 md:col-span-2">
              <a href="#" className="text-3xl font-black text-white tracking-tighter mb-8 block">
               iVision<span className="text-brand-accent">.</span>
             </a>
-            <p className="text-gray-400 max-w-sm leading-relaxed">
+            <p className="text-gray-400 max-w-sm leading-relaxed text-lg">
               Une agence digitale nouvelle génération. Nous combinons l'art visuel et la science des données pour créer des marques inoubliables.
             </p>
           </div>
@@ -28,18 +43,18 @@ export const Footer: React.FC = () => {
           <div>
              <h4 className="text-white font-bold mb-8 text-lg">Social</h4>
              <div className="flex gap-4">
-                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all">
+                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all active:scale-95">
                   <Instagram className="w-5 h-5" />
                 </a>
-                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all">
+                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all active:scale-95">
                   <Linkedin className="w-5 h-5" />
                 </a>
-                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all">
+                <a href="#" className="w-12 h-12 rounded-full bg-white/5 flex items-center justify-center text-gray-400 hover:bg-brand-accent hover:text-white transition-all active:scale-95">
                   <Twitter className="w-5 h-5" />
                 </a>
              </div>
-             <a href="mailto:hello@ivision.agency" className="flex items-center gap-2 mt-8 text-gray-400 hover:text-white transition-colors">
-               <Mail className="w-4 h-4" />
+             <a href="mailto:hello@ivision.agency" className="flex items-center gap-2 mt-8 text-gray-400 hover:text-white transition-colors group">
+               <Mail className="w-4 h-4 group-hover:scale-110 transition-transform" />
                hello@ivision.agency
              </a>
           </div>

@@ -20,6 +20,16 @@ export const Header: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Lock scroll when login modal is open
+  useEffect(() => {
+    if (isLoginOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => { document.body.style.overflow = 'unset'; };
+  }, [isLoginOpen]);
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (login(password)) {
@@ -82,8 +92,11 @@ export const Header: React.FC = () => {
 
       {/* Login Modal */}
       {isLoginOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-8 max-w-sm w-full relative shadow-2xl animate-fade-in">
+        <div 
+          className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4"
+          onClick={(e) => { if(e.target === e.currentTarget) setIsLoginOpen(false); }}
+        >
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full relative shadow-2xl animate-fade-in" onClick={(e) => e.stopPropagation()}>
             <button 
               onClick={() => setIsLoginOpen(false)}
               className="absolute top-4 right-4 text-gray-400 hover:text-brand-black"

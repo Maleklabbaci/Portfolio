@@ -70,21 +70,21 @@ export const ContactAI: React.FC = () => {
             ) : (
               <form onSubmit={handleEmailSubmit} className="space-y-6">
                 <div>
-                  <label className="block text-brand-black text-sm font-bold mb-2 uppercase tracking-wider">Nom complet</label>
-                  <input required type="text" className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-2 focus:ring-blue-100 transition-all shadow-sm" placeholder="John Doe" />
+                  <label className="block text-brand-black text-xs font-bold mb-2 uppercase tracking-wider">Nom complet</label>
+                  <input required type="text" className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-4 focus:ring-blue-50 transition-all shadow-sm" placeholder="John Doe" />
                 </div>
                 <div>
-                  <label className="block text-brand-black text-sm font-bold mb-2 uppercase tracking-wider">Email</label>
-                  <input required type="email" className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-2 focus:ring-blue-100 transition-all shadow-sm" placeholder="john@company.com" />
+                  <label className="block text-brand-black text-xs font-bold mb-2 uppercase tracking-wider">Email</label>
+                  <input required type="email" className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-4 focus:ring-blue-50 transition-all shadow-sm" placeholder="john@company.com" />
                 </div>
                 <div>
-                  <label className="block text-brand-black text-sm font-bold mb-2 uppercase tracking-wider">Message</label>
-                  <textarea required rows={4} className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-2 focus:ring-blue-100 transition-all shadow-sm" placeholder="Parlez-nous de votre projet..."></textarea>
+                  <label className="block text-brand-black text-xs font-bold mb-2 uppercase tracking-wider">Message</label>
+                  <textarea required rows={4} className="w-full bg-white border border-gray-200 rounded-xl px-5 py-4 text-brand-black focus:outline-none focus:border-brand-accent focus:ring-4 focus:ring-blue-50 transition-all shadow-sm" placeholder="Parlez-nous de votre projet..."></textarea>
                 </div>
                 <button 
                   type="submit" 
                   disabled={emailFormStatus === 'sending'}
-                  className="w-full bg-brand-black text-white font-bold py-5 rounded-xl hover:bg-brand-accent transition-all shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-wait"
+                  className="w-full bg-brand-black text-white font-black py-5 rounded-xl hover:bg-brand-accent transition-all shadow-lg hover:shadow-xl disabled:opacity-70 disabled:cursor-wait active:scale-[0.98] text-lg"
                 >
                   {emailFormStatus === 'sending' ? 'Envoi en cours...' : 'Envoyer le message'}
                 </button>
@@ -152,7 +152,7 @@ export const ContactAI: React.FC = () => {
                 <button 
                   type="submit"
                   disabled={isLoading || !input.trim()}
-                  className="bg-brand-black hover:bg-brand-accent disabled:opacity-50 disabled:cursor-not-allowed text-white p-4 rounded-full transition-all shadow-lg hover:shadow-xl absolute right-1 top-1 bottom-1 aspect-square flex items-center justify-center"
+                  className="bg-brand-black hover:bg-brand-accent disabled:opacity-50 disabled:cursor-not-allowed text-white p-4 rounded-full transition-all shadow-lg hover:shadow-xl absolute right-1 top-1 bottom-1 aspect-square flex items-center justify-center active:scale-90"
                 >
                   <Send className="w-5 h-5" />
                 </button>
