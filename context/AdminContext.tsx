@@ -68,6 +68,24 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
+// Helper pour transformer les liens vidéo (notamment Google Drive)
+const processVideoUrl = (url?: string): string | undefined => {
+  if (!url || url.trim() === '') return undefined;
+
+  // Détection des liens Google Drive
+  // Accepte: drive.google.com/file/d/ID/view, drive.google.com/open?id=ID, etc.
+  const driveIdRegex = /(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)/;
+  const match = url.match(driveIdRegex);
+
+  if (match && match[1]) {
+    // Conversion en lien de téléchargement direct pour lecture HTML5
+    // Transforme https://drive.google.com/file/d/XXX/view en https://drive.google.com/uc?export=download&id=XXX
+    return `https://drive.google.com/uc?export=download&id=${match[1]}`;
+  }
+
+  return url;
+};
+
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [isAdmin, setIsAdmin] = useState(() => {
     try {
@@ -160,20 +178,24 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // --- CRUD ACTIONS ---
   const addProject = async (project: Project) => {
+    // 1. Transformer l'URL vidéo (ex: Google Drive -> Streaming)
+    const cleanVideoUrl = processVideoUrl(project.videoUrl);
+
     if (!isSupabaseConfigured) {
       alert("Mode DÉMO : Connectez Supabase pour sauvegarder réellement.");
-      setProjects(prev => [project, ...prev]);
+      setProjects(prev => [{ ...project, videoUrl: cleanVideoUrl }, ...prev]);
       return;
     }
 
     try {
+      // 2. Insérer le projet
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([{
           title: project.title,
           category: project.category,
           image_url: project.imageUrl,
-          video_url: project.videoUrl,
+          video_url: cleanVideoUrl, // On enregistre l'URL nettoyée
           client: project.client,
           description: project.description,
           size: project.size
@@ -183,6 +205,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (projectError) throw projectError;
 
+      // 3. Insérer les métriques si existantes
       if (project.metrics && project.metrics.length > 0) {
         const metricsToInsert = project.metrics.map(m => ({
           project_id: projectData.id,
@@ -205,9 +228,12 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   const updateProject = async (project: Project) => {
+    // 1. Transformer l'URL vidéo
+    const cleanVideoUrl = processVideoUrl(project.videoUrl);
+
     if (!isSupabaseConfigured) {
       alert("Mode DÉMO : Connectez Supabase pour modifier réellement.");
-      setProjects(prev => prev.map(p => p.id === project.id ? project : p));
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...project, videoUrl: cleanVideoUrl } : p));
       return;
     }
 
@@ -218,7 +244,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           title: project.title,
           category: project.category,
           image_url: project.imageUrl,
-          video_url: project.videoUrl,
+          video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
           size: project.size
