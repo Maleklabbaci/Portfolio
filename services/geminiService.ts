@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 // Initialize the Gemini API client
 // Ideally, in a real production env, this key comes from a secure backend proxy.
 // For this frontend demo, we assume the environment variable is injected.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 export const generateAgencyResponse = async (userMessage: string): Promise<string> => {
   try {

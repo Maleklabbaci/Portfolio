@@ -1,7 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
 
-// Données initiales (anciennement dans PortfolioGallery)
+// VERSION DU STORAGE
+// Changer cette valeur force la réinitialisation des données chez tous les utilisateurs
+// Utile si on change la structure des objets Project et que les vieilles données font planter le site.
+const DATA_VERSION = 'v2_fix_init';
+
+// Données initiales
 const INITIAL_PROJECTS: Project[] = [
   {
     id: '1',
@@ -108,33 +113,53 @@ const safeStorage = {
 };
 
 export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  // Persistance de l'état Admin avec gestion d'erreurs
+  // --- GESTION DE LA VERSION DES DONNÉES ---
+  useEffect(() => {
+    const currentVersion = safeStorage.getItem('ivision_version');
+    if (currentVersion !== DATA_VERSION) {
+      console.log('Detected version mismatch or first run. Resetting data to default.');
+      safeStorage.setItem('ivision_version', DATA_VERSION);
+      // On écrase les projets existants avec les initiaux pour éviter les bugs de structure
+      safeStorage.setItem('ivision_projects', JSON.stringify(INITIAL_PROJECTS));
+      // On force un reload des projets dans le state
+      setProjects(INITIAL_PROJECTS);
+    }
+  }, []);
+
+  // --- STATE INITIALIZATION ---
   const [isAdmin, setIsAdmin] = useState(() => {
     const saved = safeStorage.getItem('ivision_is_admin');
     return saved === 'true';
   });
 
-  // Persistance des Projets avec gestion d'erreurs
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = safeStorage.getItem('ivision_projects');
     try {
-      const parsed = saved ? JSON.parse(saved) : null;
-      // Ensure we have an array
-      return Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_PROJECTS;
+      if (!saved) return INITIAL_PROJECTS;
+      const parsed = JSON.parse(saved);
+      // Validation stricte : doit être un tableau non vide
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+      return INITIAL_PROJECTS;
     } catch (e) {
+      console.error("Failed to parse projects from storage", e);
       return INITIAL_PROJECTS;
     }
   });
 
-  // Sauvegarde automatique lors des changements
+  // --- PERSISTENCE ---
   useEffect(() => {
     safeStorage.setItem('ivision_is_admin', String(isAdmin));
   }, [isAdmin]);
 
   useEffect(() => {
-    safeStorage.setItem('ivision_projects', JSON.stringify(projects));
+    if (projects && projects.length > 0) {
+       safeStorage.setItem('ivision_projects', JSON.stringify(projects));
+    }
   }, [projects]);
 
+  // --- ACTIONS ---
   const login = (password: string) => {
     if (password === 'admin') {
       setIsAdmin(true);
