@@ -1,27 +1,54 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
-import { supabase } from '../services/supabaseClient';
+import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
-// Données de secours si Supabase n'est pas configuré
+// Données de secours (Mode Démo)
 const FALLBACK_PROJECTS: Project[] = [
   {
     id: '1',
-    title: 'Exemple Summer Vibes',
+    title: 'Neon Energy Drink',
     category: ProjectCategory.REELS,
-    imageUrl: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?q=80&w=1000&auto=format&fit=crop',
+    imageUrl: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=1000&auto=format&fit=crop',
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
     client: 'NeonEnergy',
     size: 'tall',
-    metrics: [{ label: 'Vues', value: '2.4M' }]
+    metrics: [{ label: 'Vues', value: '2.4M' }, { label: 'Likes', value: '150k' }]
   },
   {
     id: '2',
-    title: 'Exemple Cinematic Brand',
+    title: 'Luxe Automotive',
     category: ProjectCategory.VIDEO,
     imageUrl: 'https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?q=80&w=1000&auto=format&fit=crop',
     videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     client: 'LuxeAuto',
-    size: 'wide'
+    size: 'wide',
+    metrics: [{ label: 'Conversion', value: '4.2%' }]
+  },
+  {
+    id: '3',
+    title: 'Minimalist Furniture',
+    category: ProjectCategory.PHOTO,
+    imageUrl: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?q=80&w=1000&auto=format&fit=crop',
+    client: 'NordicHome',
+    size: 'normal'
+  },
+  {
+    id: '4',
+    title: 'Tech Startup Brand',
+    category: ProjectCategory.DESIGN,
+    imageUrl: 'https://images.unsplash.com/photo-1626785774573-4b799314346d?q=80&w=1000&auto=format&fit=crop',
+    client: 'FlowApp',
+    size: 'large',
+    metrics: [{ label: 'Brand Lift', value: '+45%' }]
+  },
+  {
+    id: '5',
+    title: 'Fashion Week Coverage',
+    category: ProjectCategory.REELS,
+    imageUrl: 'https://images.unsplash.com/photo-1537832816519-689ad163238b?q=80&w=1000&auto=format&fit=crop',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    client: 'VogueLocal',
+    size: 'tall'
   }
 ];
 
@@ -50,11 +77,23 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // --- FETCH PROJECTS FROM SUPABASE ---
+  // --- FETCH PROJECTS ---
   const fetchProjects = async () => {
     setIsLoading(true);
+
+    // MODE DÉMO (Si pas de clés API)
+    if (!isSupabaseConfigured) {
+      console.log("Supabase non configuré : Chargement du mode démo local.");
+      // Petit délai simulé pour la fluidité UX, mais très court
+      setTimeout(() => {
+        setProjects(FALLBACK_PROJECTS);
+        setIsLoading(false);
+      }, 100);
+      return;
+    }
+
+    // MODE CONNECTÉ
     try {
-      // On récupère les projets ET leurs métriques associées
       const { data, error } = await supabase
         .from('projects')
         .select(`
@@ -67,11 +106,10 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .order('created_at', { ascending: false });
 
       if (error) {
-        console.error("Error fetching projects:", error);
-        // Si erreur (ex: mauvaise config), on charge le fallback pour que le site marche quand même
+        // En cas d'erreur explicite de Supabase
+        console.warn("Erreur Supabase, bascule sur backup:", error.message);
         setProjects(FALLBACK_PROJECTS);
       } else {
-        // Transformation des données Supabase pour matcher notre type Project
         const formattedProjects: Project[] = data.map((p: any) => ({
           id: p.id.toString(),
           title: p.title,
@@ -86,7 +124,8 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setProjects(formattedProjects);
       }
     } catch (e) {
-      console.error("Supabase connection failed:", e);
+      // En cas d'erreur réseau grave
+      console.error("Erreur critique chargement données:", e);
       setProjects(FALLBACK_PROJECTS);
     } finally {
       setIsLoading(false);
@@ -97,7 +136,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     fetchProjects();
   }, []);
 
-  // --- AUTH SIMPLE (UI Only) ---
+  // --- AUTH SIMPLE ---
   const login = (password: string) => {
     if (password === 'admin') {
       setIsAdmin(true);
@@ -113,10 +152,17 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   };
 
   // --- CRUD ACTIONS ---
+  // Ces fonctions vérifient la configuration avant d'agir
 
   const addProject = async (project: Project) => {
+    if (!isSupabaseConfigured) {
+      alert("Mode DÉMO : Connectez Supabase pour sauvegarder réellement.");
+      // Simulation locale pour l'UX
+      setProjects(prev => [project, ...prev]);
+      return;
+    }
+
     try {
-      // 1. Insert Project
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([{
@@ -133,7 +179,6 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (projectError) throw projectError;
 
-      // 2. Insert Metrics if any
       if (project.metrics && project.metrics.length > 0) {
         const metricsToInsert = project.metrics.map(m => ({
           project_id: projectData.id,
@@ -148,16 +193,21 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         if (metricsError) throw metricsError;
       }
 
-      await fetchProjects(); // Refresh UI
-    } catch (error) {
+      await fetchProjects();
+    } catch (error: any) {
       console.error("Error adding project:", error);
-      alert("Erreur lors de l'ajout sur Supabase");
+      alert(`Erreur: ${error.message || 'Impossible de sauvegarder'}`);
     }
   };
 
   const updateProject = async (project: Project) => {
+    if (!isSupabaseConfigured) {
+      alert("Mode DÉMO : Connectez Supabase pour modifier réellement.");
+      setProjects(prev => prev.map(p => p.id === project.id ? project : p));
+      return;
+    }
+
     try {
-      // 1. Update Project Fields
       const { error: projectError } = await supabase
         .from('projects')
         .update({
@@ -173,11 +223,9 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (projectError) throw projectError;
 
-      // 2. Update Metrics (Strategy: Delete all old, Insert new)
-      // Delete old metrics
+      // Update metrics: delete all and recreate
       await supabase.from('project_metrics').delete().eq('project_id', project.id);
 
-      // Insert new ones
       if (project.metrics && project.metrics.length > 0) {
         const metricsToInsert = project.metrics.map(m => ({
           project_id: project.id,
@@ -187,14 +235,21 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         await supabase.from('project_metrics').insert(metricsToInsert);
       }
 
-      await fetchProjects(); // Refresh UI
-    } catch (error) {
+      await fetchProjects();
+    } catch (error: any) {
       console.error("Error updating project:", error);
-      alert("Erreur lors de la mise à jour");
+      alert(`Erreur: ${error.message || 'Impossible de modifier'}`);
     }
   };
 
   const deleteProject = async (id: string) => {
+    if (!isSupabaseConfigured) {
+      if (confirm("Mode DÉMO : Supprimer localement ?")) {
+        setProjects(prev => prev.filter(p => p.id !== id));
+      }
+      return;
+    }
+
     try {
       const { error } = await supabase
         .from('projects')
@@ -203,10 +258,10 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (error) throw error;
       
-      await fetchProjects(); // Refresh UI
-    } catch (error) {
+      await fetchProjects();
+    } catch (error: any) {
       console.error("Error deleting project:", error);
-      alert("Erreur lors de la suppression");
+      alert(`Erreur: ${error.message}`);
     }
   };
 
