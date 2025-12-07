@@ -3,7 +3,6 @@ import { Header } from './components/Header';
 import { Hero } from './components/Hero';
 import { PortfolioGallery } from './components/PortfolioGallery';
 import { AdsStats } from './components/AdsStats';
-import { ContactAI } from './components/ContactAI';
 import { Footer } from './components/Footer';
 import { AdminProvider } from './context/AdminContext';
 
@@ -21,7 +20,6 @@ function App() {
           <Hero />
           <PortfolioGallery />
           <AdsStats />
-          <ContactAI />
         </main>
         <Footer />
       </div>

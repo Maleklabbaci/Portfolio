@@ -40,20 +40,23 @@ export const AdsStats: React.FC = () => {
   return (
     <section id="performance" className="py-24 bg-white border-t border-gray-100">
       <div className="container mx-auto px-4">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-16">
-            <div>
-                <h2 className="text-4xl md:text-5xl font-black text-brand-black mb-4">Résultats Ads</h2>
-                <p className="text-xl text-gray-500 max-w-md">Nous transformons vos budgets publicitaires en revenus tangibles grâce à la data.</p>
-            </div>
-            <div className="flex gap-8 mt-8 md:mt-0 bg-gray-50 p-6 rounded-2xl">
-                <div className="text-right">
-                    <p className="text-4xl font-black text-brand-accent">4.8x</p>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">ROAS Moyen</p>
+        
+        {/* Header Section - Centered Layout */}
+        <div className="flex flex-col items-center text-center mb-16 max-w-4xl mx-auto">
+            <h2 className="text-4xl md:text-5xl font-black text-brand-black mb-6">Résultats Ads</h2>
+            <p className="text-xl text-gray-500 mb-10 max-w-2xl leading-relaxed">
+              Nous transformons vos budgets publicitaires en revenus tangibles grâce à la data. Pas de devinettes, juste des résultats.
+            </p>
+            
+            <div className="flex gap-8 md:gap-16 bg-gray-50 p-8 rounded-3xl shadow-sm border border-gray-100">
+                <div className="text-center">
+                    <p className="text-5xl font-black text-brand-accent tracking-tight">4.8x</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-2">ROAS Moyen</p>
                 </div>
-                <div className="w-px bg-gray-200 h-16"></div>
-                <div className="text-right">
-                    <p className="text-4xl font-black text-brand-black">2M€+</p>
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-bold mt-1">Générés</p>
+                <div className="w-px bg-gray-200"></div>
+                <div className="text-center">
+                    <p className="text-5xl font-black text-brand-black tracking-tight">2M€+</p>
+                    <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mt-2">Générés</p>
                 </div>
             </div>
         </div>
@@ -82,7 +85,7 @@ export const AdsStats: React.FC = () => {
             {/* Stats Cards */}
             <div className="flex flex-col gap-6">
                 <div className="flex-1 bg-white p-8 rounded-3xl border border-gray-100 shadow-lg shadow-gray-200/40 flex items-center gap-6 group hover:border-blue-100 transition-colors">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors flex-shrink-0">
                         <TrendingUp className="text-brand-accent w-6 h-6 group-hover:text-white transition-colors" />
                     </div>
                     <div>
@@ -92,7 +95,7 @@ export const AdsStats: React.FC = () => {
                 </div>
                 
                  <div className="flex-1 bg-white p-8 rounded-3xl border border-gray-100 shadow-lg shadow-gray-200/40 flex items-center gap-6 group hover:border-blue-100 transition-colors">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors flex-shrink-0">
                         <Target className="text-brand-accent w-6 h-6 group-hover:text-white transition-colors" />
                     </div>
                     <div>
@@ -102,7 +105,7 @@ export const AdsStats: React.FC = () => {
                 </div>
 
                 <div className="flex-1 bg-white p-8 rounded-3xl border border-gray-100 shadow-lg shadow-gray-200/40 flex items-center gap-6 group hover:border-blue-100 transition-colors">
-                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center group-hover:bg-brand-accent transition-colors flex-shrink-0">
                         <DollarSign className="text-brand-accent w-6 h-6 group-hover:text-white transition-colors" />
                     </div>
                     <div>

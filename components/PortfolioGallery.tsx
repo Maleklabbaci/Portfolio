@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { useAdmin } from '../context/AdminContext';
 import { ProjectFormModal } from './ProjectFormModal';
-import { Play, Maximize2, Instagram, TrendingUp, Edit2, Trash2, Plus, X } from 'lucide-react';
+import { Play, Maximize2, Instagram, TrendingUp, Edit2, Trash2, Plus, X, ArrowRight } from 'lucide-react';
 
 export const PortfolioGallery: React.FC = () => {
   const { projects, isAdmin, deleteProject, updateProject, addProject } = useAdmin();
@@ -106,36 +106,62 @@ export const PortfolioGallery: React.FC = () => {
     }
   };
 
+  // Find similar projects for the viewer
+  const similarProjects = viewingProject 
+    ? projects
+        .filter(p => p.category === viewingProject.category && p.id !== viewingProject.id)
+        .slice(0, 2) 
+    : [];
+
   return (
-    <section id="work" className="py-20 bg-brand-light min-h-screen relative">
+    <section id="work" className="py-24 bg-brand-light min-h-screen relative">
       <div className="container mx-auto px-4">
         
-        {/* Navigation Filters & Admin Controls */}
-        <div className="sticky top-20 z-30 bg-brand-light/95 backdrop-blur py-6 mb-12 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex overflow-x-auto gap-2 no-scrollbar bg-white p-2 rounded-2xl shadow-sm border border-gray-100 max-w-full">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setFilter(cat)}
-                className={`whitespace-nowrap px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 ${
-                  filter === cat
-                    ? 'bg-brand-black text-white shadow-lg'
-                    : 'text-gray-500 hover:text-brand-black hover:bg-gray-100'
-                }`}
-              >
-                {cat === 'ALL' ? 'Tout' : cat}
-              </button>
-            ))}
-          </div>
+        {/* Navigation Filters & Admin Controls - Centered Layout */}
+        <div className="sticky top-24 z-30 mb-16">
+          <div className="relative flex justify-center items-center">
+            {/* Filters Centered */}
+            <div className="flex overflow-x-auto gap-2 no-scrollbar bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-sm border border-gray-100 max-w-full">
+              {categories.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setFilter(cat)}
+                  className={`whitespace-nowrap px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 ${
+                    filter === cat
+                      ? 'bg-brand-black text-white shadow-lg'
+                      : 'text-gray-500 hover:text-brand-black hover:bg-gray-100'
+                  }`}
+                >
+                  {cat === 'ALL' ? 'Tout' : cat}
+                </button>
+              ))}
+            </div>
 
+            {/* Admin Button - Absolute Right on Desktop, Stacked on Mobile */}
+            {isAdmin && (
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:block">
+                <button 
+                  onClick={handleAddNew}
+                  className="flex items-center gap-2 bg-brand-accent hover:bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95"
+                >
+                  <Plus className="w-5 h-5" />
+                  Nouveau
+                </button>
+              </div>
+            )}
+          </div>
+          
+          {/* Mobile Admin Button */}
           {isAdmin && (
-            <button 
-              onClick={handleAddNew}
-              className="flex items-center gap-2 bg-brand-accent hover:bg-blue-700 text-white px-6 py-3.5 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95"
-            >
-              <Plus className="w-5 h-5" />
-              Nouveau Projet
-            </button>
+            <div className="lg:hidden mt-4 flex justify-center">
+               <button 
+                  onClick={handleAddNew}
+                  className="flex items-center gap-2 bg-brand-accent hover:bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95 w-full justify-center"
+                >
+                  <Plus className="w-5 h-5" />
+                  Ajouter un projet
+                </button>
+            </div>
           )}
         </div>
 
@@ -157,6 +183,7 @@ export const PortfolioGallery: React.FC = () => {
                   src={project.imageUrl}
                   alt={project.title}
                   loading="lazy"
+                  decoding="async"
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 z-0 relative"
                 />
 
@@ -169,7 +196,6 @@ export const PortfolioGallery: React.FC = () => {
                     playsInline
                     preload="none"
                     onError={(e) => {
-                      // Hide video element on error so it doesn't block the image
                       e.currentTarget.style.display = 'none';
                     }}
                     className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"
@@ -279,6 +305,8 @@ export const PortfolioGallery: React.FC = () => {
                  <img 
                   src={viewingProject.imageUrl} 
                   alt={viewingProject.title} 
+                  loading="lazy"
+                  decoding="async"
                   className="w-full h-full max-h-[85vh] object-contain"
                 />
               )}
@@ -300,7 +328,7 @@ export const PortfolioGallery: React.FC = () => {
                  )}
 
                  {viewingProject.metrics && viewingProject.metrics.length > 0 && (
-                   <div className="space-y-6">
+                   <div className="space-y-6 mb-8">
                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Performance Metrics</h3>
                      <div className="grid grid-cols-2 gap-4">
                       {viewingProject.metrics.map((m, idx) => (
@@ -312,11 +340,42 @@ export const PortfolioGallery: React.FC = () => {
                      </div>
                    </div>
                  )}
+
+                 {/* Similar Projects Section */}
+                 {similarProjects.length > 0 && (
+                   <div className="mt-6 pt-6 border-t border-gray-100">
+                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Projets Similaires</h3>
+                     <div className="grid grid-cols-2 gap-3">
+                       {similarProjects.map((simProject) => (
+                         <div 
+                           key={simProject.id} 
+                           onClick={() => setViewingProject(simProject)}
+                           className="group cursor-pointer"
+                         >
+                           <div className="aspect-[4/3] rounded-xl overflow-hidden mb-2 relative bg-gray-100">
+                             <img 
+                               src={simProject.imageUrl} 
+                               alt={simProject.title}
+                               loading="lazy"
+                               decoding="async"
+                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                             />
+                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                           </div>
+                           <h4 className="text-sm font-bold text-brand-black leading-tight group-hover:text-brand-accent transition-colors">
+                             {simProject.title}
+                           </h4>
+                         </div>
+                       ))}
+                     </div>
+                   </div>
+                 )}
                </div>
                
                <div className="mt-8 pt-6 border-t border-gray-100">
-                  <a href="#contact" onClick={() => setViewingProject(null)} className="flex items-center justify-center w-full bg-brand-black text-white font-bold py-4 rounded-xl hover:bg-brand-accent transition-all">
-                    Demander un projet similaire
+                  <a href="#contact" onClick={() => setViewingProject(null)} className="flex items-center justify-center w-full bg-brand-black text-white font-bold py-4 rounded-xl hover:bg-brand-accent transition-all group">
+                    <span>Démarrer un projet</span>
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
                   </a>
                </div>
             </div>

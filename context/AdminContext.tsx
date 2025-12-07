@@ -2,7 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { Project, ProjectCategory } from '../types';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
 
-// Données de secours (Mode Démo) avec URLs fiables
+// Données de secours (Mode Démo)
 const FALLBACK_PROJECTS: Project[] = [
   {
     id: '1',
@@ -40,20 +40,11 @@ const FALLBACK_PROJECTS: Project[] = [
     client: 'FlowApp',
     size: 'large',
     metrics: [{ label: 'Brand Lift', value: '+45%' }]
-  },
-  {
-    id: '5',
-    title: 'Fashion Week Coverage',
-    category: ProjectCategory.REELS,
-    imageUrl: 'https://images.unsplash.com/photo-1509631179647-0177f011a859?q=80&w=1000&auto=format&fit=crop',
-    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
-    client: 'VogueLocal',
-    size: 'tall'
   }
 ];
 
-// Version des données pour forcer le nettoyage du cache si nécessaire
-const DATA_VERSION = 'v3';
+// Version des données (Incrémenté pour forcer le refresh)
+const DATA_VERSION = 'v10';
 
 interface AdminContextType {
   isAdmin: boolean;
@@ -64,25 +55,19 @@ interface AdminContextType {
   addProject: (project: Project) => Promise<void>;
   updateProject: (project: Project) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
+  isLive: boolean;
 }
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-// Helper pour transformer les liens vidéo (notamment Google Drive)
+// Helper transformation lien Video
 const processVideoUrl = (url?: string): string | undefined => {
   if (!url || url.trim() === '') return undefined;
-
-  // Détection des liens Google Drive
-  // Accepte: drive.google.com/file/d/ID/view, drive.google.com/open?id=ID, etc.
   const driveIdRegex = /(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)/;
   const match = url.match(driveIdRegex);
-
   if (match && match[1]) {
-    // Conversion en lien de téléchargement direct pour lecture HTML5
-    // Transforme https://drive.google.com/file/d/XXX/view en https://drive.google.com/uc?export=download&id=XXX
     return `https://drive.google.com/uc?export=download&id=${match[1]}`;
   }
-
   return url;
 };
 
@@ -102,39 +87,29 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   const fetchProjects = async () => {
     setIsLoading(true);
 
-    // MODE DÉMO (Si pas de clés API)
     if (!isSupabaseConfigured) {
-      console.log("Supabase non configuré : Chargement du mode démo local.");
-      
-      // Check version to maybe reset localstorage data if we were using it
+      console.log("⚠️ Supabase non configuré. Mode lecture locale.");
       const storedVersion = localStorage.getItem('ivision_data_version');
       if (storedVersion !== DATA_VERSION) {
-         localStorage.removeItem('ivision_local_projects'); // Clear old data
          localStorage.setItem('ivision_data_version', DATA_VERSION);
       }
-
       setProjects(FALLBACK_PROJECTS);
       setIsLoading(false);
       return;
     }
 
-    // MODE CONNECTÉ
     try {
       const { data, error } = await supabase
         .from('projects')
         .select(`
           *,
-          project_metrics (
-            label,
-            value
-          )
+          project_metrics (label, value)
         `)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.warn("Erreur Supabase:", error.message || error);
-        setProjects(FALLBACK_PROJECTS);
-      } else {
+      if (error) throw error;
+
+      if (data) {
         const formattedProjects: Project[] = data.map((p: any) => ({
           id: p.id.toString(),
           title: p.title,
@@ -149,9 +124,9 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         setProjects(formattedProjects);
       }
     } catch (e: any) {
-      // Improved error logging
-      console.error("Erreur critique chargement données:", e?.message || e);
-      setProjects(FALLBACK_PROJECTS);
+      console.error("Erreur chargement DB:", e.message);
+      // En cas d'erreur réseau, on ne remplace pas par le fallback pour ne pas induire en erreur l'admin
+      if (projects.length === 0) setProjects(FALLBACK_PROJECTS);
     } finally {
       setIsLoading(false);
     }
@@ -161,7 +136,6 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     fetchProjects();
   }, []);
 
-  // --- AUTH SIMPLE ---
   const login = (password: string) => {
     if (password === 'admin') {
       setIsAdmin(true);
@@ -178,24 +152,22 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // --- CRUD ACTIONS ---
   const addProject = async (project: Project) => {
-    // 1. Transformer l'URL vidéo (ex: Google Drive -> Streaming)
     const cleanVideoUrl = processVideoUrl(project.videoUrl);
 
     if (!isSupabaseConfigured) {
-      alert("Mode DÉMO : Connectez Supabase pour sauvegarder réellement.");
+      alert("⚠️ ATTENTION: Vos clés Supabase ne sont pas configurées correctement.\n\nLe projet sera ajouté TEMPORAIREMENT et disparaîtra au rechargement.");
       setProjects(prev => [{ ...project, videoUrl: cleanVideoUrl }, ...prev]);
       return;
     }
 
     try {
-      // 2. Insérer le projet
       const { data: projectData, error: projectError } = await supabase
         .from('projects')
         .insert([{
           title: project.title,
           category: project.category,
           image_url: project.imageUrl,
-          video_url: cleanVideoUrl, // On enregistre l'URL nettoyée
+          video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
           size: project.size
@@ -205,7 +177,6 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (projectError) throw projectError;
 
-      // 3. Insérer les métriques si existantes
       if (project.metrics && project.metrics.length > 0) {
         const metricsToInsert = project.metrics.map(m => ({
           project_id: projectData.id,
@@ -221,18 +192,18 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       await fetchProjects();
+      alert("✅ Projet enregistré avec succès dans la base de données !");
     } catch (error: any) {
-      console.error("Error adding project:", error);
-      alert(`Erreur: ${error.message || 'Impossible de sauvegarder'}`);
+      console.error("Erreur Ajout:", error);
+      alert(`❌ Erreur lors de la sauvegarde : ${error.message}`);
     }
   };
 
   const updateProject = async (project: Project) => {
-    // 1. Transformer l'URL vidéo
     const cleanVideoUrl = processVideoUrl(project.videoUrl);
 
     if (!isSupabaseConfigured) {
-      alert("Mode DÉMO : Connectez Supabase pour modifier réellement.");
+      alert("⚠️ ATTENTION: Supabase non configuré. Modification temporaire.");
       setProjects(prev => prev.map(p => p.id === project.id ? { ...project, videoUrl: cleanVideoUrl } : p));
       return;
     }
@@ -253,9 +224,8 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
       if (projectError) throw projectError;
 
-      // Update metrics: delete all and recreate
+      // Update metrics
       await supabase.from('project_metrics').delete().eq('project_id', project.id);
-
       if (project.metrics && project.metrics.length > 0) {
         const metricsToInsert = project.metrics.map(m => ({
           project_id: project.id,
@@ -266,37 +236,33 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       await fetchProjects();
+      alert("✅ Modification enregistrée !");
     } catch (error: any) {
-      console.error("Error updating project:", error);
-      alert(`Erreur: ${error.message || 'Impossible de modifier'}`);
+      console.error("Erreur Update:", error);
+      alert(`❌ Erreur modification : ${error.message}`);
     }
   };
 
   const deleteProject = async (id: string) => {
     if (!isSupabaseConfigured) {
-      if (confirm("Mode DÉMO : Supprimer localement ?")) {
+      if (confirm("Supabase non configuré. Supprimer localement ?")) {
         setProjects(prev => prev.filter(p => p.id !== id));
       }
       return;
     }
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .delete()
-        .eq('id', id);
-
+      const { error } = await supabase.from('projects').delete().eq('id', id);
       if (error) throw error;
-      
       await fetchProjects();
     } catch (error: any) {
-      console.error("Error deleting project:", error);
-      alert(`Erreur: ${error.message || 'Erreur suppression'}`);
+      console.error("Erreur Delete:", error);
+      alert(`❌ Erreur suppression : ${error.message}`);
     }
   };
 
   return (
-    <AdminContext.Provider value={{ isAdmin, login, logout, projects, isLoading, addProject, updateProject, deleteProject }}>
+    <AdminContext.Provider value={{ isAdmin, login, logout, projects, isLoading, addProject, updateProject, deleteProject, isLive: isSupabaseConfigured }}>
       {children}
     </AdminContext.Provider>
   );
