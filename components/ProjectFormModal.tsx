@@ -58,35 +58,41 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     };
   }, [initialData, isOpen]);
 
-  // Update preview when URLs change
+  // Debounced Preview Update
   useEffect(() => {
-    setMediaError(null); // Reset error on new input
+    setMediaError(null);
     
-    const img = processGoogleDriveLink(formData.imageUrl) || formData.imageUrl;
-    const vid = processGoogleDriveLink(formData.videoUrl) || formData.videoUrl;
+    // Clear current preview immediately to avoid stale data
+    setPreviewMedia({ type: null, url: null });
+    
+    // Add small delay to avoid rapid updates while typing
+    const timer = setTimeout(() => {
+        const img = processGoogleDriveLink(formData.imageUrl) || formData.imageUrl;
+        const vid = processGoogleDriveLink(formData.videoUrl) || formData.videoUrl;
 
-    if (img) {
-      setPreviewMedia({ type: 'image', url: img });
-      setIsMediaLoading(true);
-    } else if (vid) {
-      setPreviewMedia({ type: 'video', url: vid });
-      setIsMediaLoading(true); 
-    } else {
-      setPreviewMedia({ type: null, url: null });
-      setIsMediaLoading(false);
-    }
+        if (img) {
+          setPreviewMedia({ type: 'image', url: img });
+          setIsMediaLoading(true);
+        } else if (vid) {
+          setPreviewMedia({ type: 'video', url: vid });
+          setIsMediaLoading(true); 
+        } else {
+          setPreviewMedia({ type: null, url: null });
+          setIsMediaLoading(false);
+        }
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, [formData.imageUrl, formData.videoUrl]);
 
   if (!isOpen) return null;
 
   // --- VALIDATION LOGIC ---
   const validateMediaLink = async (url: string, type: 'image' | 'video'): Promise<boolean> => {
-    if (!url) return true; // Empty is fine (handled by required check elsewhere)
+    if (!url) return true; // Empty is fine
 
-    // 1. Check Google Drive Format (Enhanced regex to handle processed links with parameters)
+    // 1. Check Google Drive Format (Enhanced regex to handle processed links)
     if (url.includes('drive.google.com')) {
-       // Drive uses iframes, we can't fetch them, but we can check if ID exists
-       // Matches: /file/d/ID, open?id=ID, uc?id=ID, uc?export=download&id=ID
        const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
        return !!driveMatch;
     }
@@ -97,17 +103,17 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
        return !!ytMatch;
     }
 
-    // 3. Direct Image Validation
+    // 3. Direct Image Validation with Timeout
     if (type === 'image') {
       return new Promise((resolve) => {
         const img = new Image();
-        img.onload = () => resolve(true);
-        img.onerror = () => resolve(false);
+        const timer = setTimeout(() => { img.src = ""; resolve(false); }, 5000);
+        img.onload = () => { clearTimeout(timer); resolve(true); };
+        img.onerror = () => { clearTimeout(timer); resolve(false); };
         img.src = url;
       });
     }
 
-    // 4. Fallback for direct videos (can't easily validate without CORS, assume true if not empty)
     return true;
   };
 
@@ -119,32 +125,25 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
       return;
     }
     
-    // --- PRE-SAVE VALIDATION STEP ---
     setIsValidating(true);
-    let isValid = true;
+    
+    const imgUrlToTest = formData.imageUrl ? (processGoogleDriveLink(formData.imageUrl) || formData.imageUrl) : null;
+    const vidUrlToTest = formData.videoUrl ? (processGoogleDriveLink(formData.videoUrl) || formData.videoUrl) : null;
+
+    const [validImg, validVid] = await Promise.all([
+        imgUrlToTest ? validateMediaLink(imgUrlToTest, 'image') : Promise.resolve(true),
+        vidUrlToTest ? validateMediaLink(vidUrlToTest, 'video') : Promise.resolve(true)
+    ]);
+
     let errorMessage = null;
-
-    if (formData.imageUrl) {
-       // Use processed link for validation to ensure Drive links are handled correctly
-       const validImg = await validateMediaLink(processGoogleDriveLink(formData.imageUrl) || formData.imageUrl!, 'image');
-       if (!validImg) {
-         isValid = false;
-         errorMessage = "L'URL de l'image semble invalide ou inaccessible.";
-       }
-    }
-
-    // Note: Video validation is looser because of CORS on direct links
-    if (isValid && formData.videoUrl) {
-       const validVid = await validateMediaLink(processGoogleDriveLink(formData.videoUrl) || formData.videoUrl!, 'video');
-       if (!validVid) {
-          isValid = false;
-          errorMessage = "Le format du lien vidéo (Drive/YouTube) semble incorrect.";
-       }
-    }
+    // We are more lenient with Google Drive images now, as we treat them as iframes
+    const isDriveImage = imgUrlToTest && imgUrlToTest.includes('drive.google.com');
+    if (!validImg && !isDriveImage) errorMessage = "L'URL de l'image semble invalide, inaccessible ou privée.";
+    else if (!validVid) errorMessage = "Le format du lien vidéo (Drive/YouTube) semble incorrect.";
 
     setIsValidating(false);
 
-    if (!isValid) {
+    if (errorMessage) {
       setMediaError(errorMessage);
       if(!confirm(`${errorMessage}\n\nVoulez-vous quand même forcer l'enregistrement ?`)) {
         return;
@@ -168,7 +167,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
 
   const handleMediaError = () => {
     setIsMediaLoading(false);
-    // Only set error if we are not loading an iframe (which often throws false positives cross-origin)
     const isIframe = previewMedia.url && (previewMedia.url.includes('drive.google.com') || previewMedia.url.includes('youtube') || previewMedia.url.includes('youtu.be'));
     if (!isIframe) {
       setMediaError("Impossible de charger le média. Vérifiez le lien (accès public requis).");
@@ -182,7 +180,6 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     { id: 'large', label: 'Large', icon: LayoutGrid, class: 'aspect-square' },
   ];
 
-  // Helper to check for iframe sources
   const getEmbedUrl = (url: string) => {
     const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
     if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
@@ -300,7 +297,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                 {previewMedia.url ? (
                   <>
                     {isMediaLoading && !mediaError && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10 transition-opacity duration-300">
                         <Loader2 className="w-8 h-8 text-brand-accent animate-spin" />
                       </div>
                     )}
@@ -310,16 +307,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                         <AlertCircle className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-xs font-bold leading-tight">{mediaError}</p>
                       </div>
-                    ) : previewMedia.type === 'image' ? (
-                       <img 
-                        src={previewMedia.url} 
-                        alt="Preview" 
-                        onLoad={() => setIsMediaLoading(false)}
-                        onError={handleMediaError}
-                        className="w-full h-full object-cover"
-                      />
                     ) : (
-                      // Video Preview Logic
+                      // SMART PREVIEW LOGIC: Check for Embeddable FIRST (Images OR Videos)
                       getEmbedUrl(previewMedia.url) ? (
                         <iframe
                           src={getEmbedUrl(previewMedia.url)!}
@@ -327,7 +316,15 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                           onLoad={() => setIsMediaLoading(false)}
                           title="Preview"
                         />
-                      ) : (
+                      ) : previewMedia.type === 'image' ? (
+                       <img 
+                        src={previewMedia.url} 
+                        alt="Preview" 
+                        onLoad={() => setIsMediaLoading(false)}
+                        onError={handleMediaError}
+                        className={`w-full h-full object-cover transition-all duration-500 ${isMediaLoading ? 'opacity-0 scale-105 blur-sm' : 'opacity-100 scale-100 blur-0'}`}
+                      />
+                    ) : (
                         <video 
                           src={previewMedia.url} 
                           muted 

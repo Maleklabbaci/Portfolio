@@ -177,6 +177,7 @@ interface ProjectCardProps {
 const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onDelete, onClick, getGridClass }) => {
   const [isHovered, setIsHovered] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
+  const [isImageLoaded, setIsImageLoaded] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
 
   // Intersection Observer for the card itself
@@ -207,13 +208,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
     >
       {/* Background Media */}
       {hasImage ? (
+        <>
+          {/* Skeleton Placeholder */}
+          {!isImageLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse z-0" />}
           <img
-          src={project.imageUrl}
-          alt={project.title}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 z-0 relative"
-        />
+            src={project.imageUrl}
+            alt={project.title}
+            loading="lazy"
+            decoding="async"
+            onLoad={() => setIsImageLoaded(true)}
+            className={`w-full h-full object-cover transition-all duration-700 z-0 relative ${
+              isImageLoaded 
+                ? 'opacity-100 blur-0 scale-100 group-hover:scale-110' 
+                : 'opacity-0 blur-lg scale-105'
+            }`}
+          />
+        </>
       ) : hasVideo ? (
           <SmartVideoPlayer
           src={project.videoUrl!}
@@ -292,11 +302,15 @@ export const PortfolioGallery: React.FC = () => {
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
   const [viewingProject, setViewingProject] = useState<Project | null>(null);
+  
+  // Viewer Image Loading State
+  const [isViewerImageLoaded, setIsViewerImageLoaded] = useState(false);
 
   // Manage body scroll when viewer is open
   useEffect(() => {
     if (viewingProject) {
       document.body.style.overflow = 'hidden';
+      setIsViewerImageLoaded(false); // Reset loading state
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -456,13 +470,19 @@ export const PortfolioGallery: React.FC = () => {
                   className={`max-h-[85vh] w-full h-full ${viewingProject.category === ProjectCategory.REELS ? 'max-w-md mx-auto aspect-[9/16]' : 'aspect-video'}`}
                 />
               ) : viewingProject.imageUrl ? (
+                <>
+                 {!isViewerImageLoaded && <div className="absolute inset-0 bg-gray-800 animate-pulse" />}
                  <img 
                   src={viewingProject.imageUrl} 
                   alt={viewingProject.title} 
                   loading="lazy"
                   decoding="async"
-                  className="w-full h-full max-h-[85vh] object-contain"
+                  onLoad={() => setIsViewerImageLoaded(true)}
+                  className={`w-full h-full max-h-[85vh] object-contain transition-all duration-700 ${
+                    isViewerImageLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'
+                  }`}
                 />
+                </>
               ) : (
                 <div className="text-white">Media non disponible</div>
               )}
@@ -515,7 +535,7 @@ export const PortfolioGallery: React.FC = () => {
                                   alt={simProject.title}
                                   loading="lazy"
                                   decoding="async"
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]"
                                 />
                              ) : (
                                 <SmartVideoPlayer 
