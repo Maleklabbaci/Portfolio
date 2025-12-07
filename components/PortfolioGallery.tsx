@@ -196,6 +196,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
 
   const hasVideo = !!project.videoUrl;
   const hasImage = !!project.imageUrl;
+  // Detect if the "Image" is actually a Google Drive link (which needs iframe)
+  const isDriveImage = hasImage && project.imageUrl!.includes('drive.google.com');
+
   const showHoverPreview = hasVideo && hasImage;
 
   return (
@@ -204,10 +207,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
       onClick={() => onClick(project)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transition-all duration-500 active:scale-[0.98] ${getGridClass(project.size)}`}
+      className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transform transition-all duration-300 hover:scale-[1.03] hover:z-20 ${getGridClass(project.size)}`}
     >
       {/* Background Media */}
-      {hasImage ? (
+      {hasImage && !isDriveImage ? (
         <>
           {/* Skeleton Placeholder */}
           {!isImageLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse z-0" />}
@@ -219,14 +222,14 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
             onLoad={() => setIsImageLoaded(true)}
             className={`w-full h-full object-cover transition-all duration-700 z-0 relative ${
               isImageLoaded 
-                ? 'opacity-100 blur-0 scale-100 group-hover:scale-110' 
+                ? 'opacity-100 blur-0 scale-100' 
                 : 'opacity-0 blur-lg scale-105'
             }`}
           />
         </>
-      ) : hasVideo ? (
+      ) : (hasImage && isDriveImage) || hasVideo ? (
           <SmartVideoPlayer
-          src={project.videoUrl!}
+          src={(hasImage && isDriveImage) ? project.imageUrl! : project.videoUrl!}
           className="w-full h-full pointer-events-none"
           autoPlay={true}
         />
@@ -236,7 +239,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
         </div>
       )}
 
-      {/* Lazy Hover Video Preview */}
+      {/* Lazy Hover Video Preview (Only if we have a separate video URL) */}
       {showHoverPreview && (
         <LazyHoverPreview 
           src={project.videoUrl!} 
@@ -469,6 +472,13 @@ export const PortfolioGallery: React.FC = () => {
                   autoPlay={true}
                   className={`max-h-[85vh] w-full h-full ${viewingProject.category === ProjectCategory.REELS ? 'max-w-md mx-auto aspect-[9/16]' : 'aspect-video'}`}
                 />
+              ) : viewingProject.imageUrl && viewingProject.imageUrl.includes('drive.google.com') ? (
+                 <SmartVideoPlayer 
+                  src={viewingProject.imageUrl} 
+                  controls={true}
+                  autoPlay={false}
+                  className="max-h-[85vh] w-full h-full aspect-video"
+                />
               ) : viewingProject.imageUrl ? (
                 <>
                  {!isViewerImageLoaded && <div className="absolute inset-0 bg-gray-800 animate-pulse" />}
@@ -529,7 +539,7 @@ export const PortfolioGallery: React.FC = () => {
                            className="group cursor-pointer"
                          >
                            <div className="aspect-[4/3] rounded-xl overflow-hidden mb-2 relative bg-gray-100">
-                             {simProject.imageUrl ? (
+                             {simProject.imageUrl && !simProject.imageUrl.includes('drive.google.com') ? (
                                 <img 
                                   src={simProject.imageUrl} 
                                   alt={simProject.title}
@@ -539,7 +549,7 @@ export const PortfolioGallery: React.FC = () => {
                                 />
                              ) : (
                                 <SmartVideoPlayer 
-                                  src={simProject.videoUrl!} 
+                                  src={simProject.imageUrl && simProject.imageUrl.includes('drive.google.com') ? simProject.imageUrl : simProject.videoUrl!} 
                                   className="w-full h-full object-cover pointer-events-none"
                                 />
                              )}

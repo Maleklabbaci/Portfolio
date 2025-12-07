@@ -62,6 +62,18 @@
         -ms-overflow-style: none;
         scrollbar-width: none;
       }
+
+      /* CUSTOM CURSOR - "V" Shape Blue */
+      @media (min-width: 1024px) {
+        body, a, button, input, select, textarea, [role="button"] {
+          /* SVG Data URI for a Blue V shape */
+          cursor: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 8L16 24L24 8' stroke='%232563eb' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, auto !important;
+        }
+        /* Ensure specific cursors don't override it unless necessary */
+        .cursor-pointer {
+           cursor: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M8 8L16 24L24 8' stroke='%232563eb' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, pointer !important;
+        }
+      }
     </style>
   <script type="importmap">
 {

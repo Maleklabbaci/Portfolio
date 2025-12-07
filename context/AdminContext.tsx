@@ -45,7 +45,7 @@ const FALLBACK_PROJECTS: Project[] = [
 ];
 
 // Version des données (Incrémenté pour forcer le refresh)
-const DATA_VERSION = 'v25';
+const DATA_VERSION = 'v28';
 
 interface AdminContextType {
   isAdmin: boolean;
