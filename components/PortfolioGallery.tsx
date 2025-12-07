@@ -4,9 +4,8 @@ import { useAdmin } from '../context/AdminContext';
 import { ProjectFormModal } from './ProjectFormModal';
 import { Maximize2, Edit2, Trash2, Plus, X, ArrowRight, AlertCircle } from 'lucide-react';
 
-// --- SMART VIDEO PLAYER (Main Content) ---
-// Détecte Google Drive / YouTube et utilise un Iframe si nécessaire, sinon Video HTML5
-// Utilise IntersectionObserver pour ne charger/jouer que si visible à l'écran
+// --- SMART VIDEO PLAYER ---
+// ... (Code inchangé pour SmartVideoPlayer)
 const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: boolean; controls?: boolean }> = ({ src, className, autoPlay = false, controls = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -22,11 +21,10 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
       return;
     }
     const observer = new IntersectionObserver(([entry]) => {
-      // Chargement dynamique : On charge quand c'est visible (avec une marge de 200px pour précharger avant le scroll)
       setIsVisible(entry.isIntersecting);
     }, { 
       threshold: 0.1,
-      rootMargin: '200px' // Précharge 200px avant d'entrer dans le viewport pour fluidité
+      rootMargin: '200px'
     }); 
     
     if (containerRef.current) observer.observe(containerRef.current);
@@ -45,9 +43,6 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
   const driveMatch = src.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
   const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
 
-  // Render logic based on visibility to save resources
-  // On mobile/desktop: if autoPlay is true (Grid), only render when visible.
-  // If controls are on (Viewer), render always if needed but usually visibility is enough.
   const shouldRender = isVisible || !autoPlay; 
 
   if (driveMatch) {
@@ -94,7 +89,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
        {shouldRender && (
          <video
             src={src}
-            className="w-full h-full object-cover"
+            className={`w-full h-full ${controls ? 'object-contain' : 'object-cover'}`}
             muted
             loop={!controls}
             autoPlay={autoPlay}
@@ -109,8 +104,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
 };
 
 // --- LAZY HOVER PREVIEW ---
-// Handles hover previews efficiently using IntersectionObserver from Parent
-// Ensures video is loaded strictly on hover
+// ... (Code inchangé pour LazyHoverPreview)
 const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisible: boolean }> = ({ src, isHovered, isParentVisible }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isMobile, setIsMobile] = useState(false);
@@ -118,494 +112,398 @@ const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisi
   useEffect(() => {
     setIsMobile(window.innerWidth < 768);
   }, []);
-  
-  // Logic for HTML5 videos: Play only when hovered
+
   useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
+    if (isMobile) return; 
 
-    if (isHovered && !isMobile) {
-      // Set attributes and play
-      video.muted = true;
-      video.currentTime = 0;
-      
-      const playPromise = video.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          // Auto-play was prevented
-        });
-      }
-    } else {
-      video.pause();
+    if (isHovered && isParentVisible && videoRef.current) {
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {});
+        }
+    } else if (videoRef.current) {
+        videoRef.current.pause();
+        videoRef.current.currentTime = 0;
     }
-  }, [isHovered, isMobile]);
+  }, [isHovered, isParentVisible, isMobile]);
 
-  // If parent card isn't visible in viewport OR it's mobile, don't render anything to save memory
-  if (!isParentVisible || isMobile) return null;
+  if (isMobile) return null;
 
   const driveMatch = src.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
   const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
 
-  // For Iframes (Drive/YT): Only mount if hovered (heavy resource)
   if (driveMatch) {
     if (!isHovered) return null;
-    const driveId = driveMatch[1];
     return (
-      <iframe
-        src={`https://drive.google.com/file/d/${driveId}/preview?autoplay=1`}
-        className="absolute inset-0 w-full h-full object-cover z-10 border-0 pointer-events-none"
-        allow="autoplay"
-        loading="lazy"
-      />
+        <div className="absolute inset-0 z-20 bg-black animate-fade-in">
+           <iframe
+            src={`https://drive.google.com/file/d/${driveMatch[1]}/preview`}
+            className="w-full h-full border-0"
+            allow="autoplay"
+            title="Drive Preview"
+          />
+        </div>
     );
   }
-
+  
   if (ytMatch) {
     if (!isHovered) return null;
-    const ytId = ytMatch[1];
     return (
-      <iframe
-        src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${ytId}`}
-        className="absolute inset-0 w-full h-full object-cover z-10 border-0 pointer-events-none"
-        allow="autoplay"
-        loading="lazy"
-      />
+         <div className="absolute inset-0 z-20 bg-black animate-fade-in">
+           <iframe
+            src={`https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&controls=0&modestbranding=1`}
+            className="w-full h-full border-0"
+            allow="autoplay"
+            title="YT Preview"
+          />
+        </div>
     );
   }
 
-  // For HTML5: 
-  // Optimization: Only set 'src' if hovered. This prevents ANY network request until hover.
   return (
     <video
-      ref={videoRef}
-      src={isHovered ? src : ''}
-      muted
-      loop
-      playsInline
-      preload="none"
-      className={`absolute inset-0 w-full h-full object-cover z-10 transition-opacity duration-300 pointer-events-none ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+        ref={videoRef}
+        src={isHovered ? src : ""} // Only set src when hovered to prevent network requests
+        className={`absolute inset-0 w-full h-full object-cover z-20 transition-opacity duration-300 ${isHovered ? 'opacity-100' : 'opacity-0'}`}
+        muted
+        loop
+        playsInline
+        preload="none" 
     />
   );
 };
 
+
 // --- PROJECT CARD COMPONENT ---
-interface ProjectCardProps {
-  project: Project;
-  isAdmin: boolean;
-  onEdit: (p: Project, e: React.MouseEvent) => void;
-  onDelete: (id: string, e: React.MouseEvent) => void;
-  onClick: (p: Project) => void;
-  getGridClass: (size?: string) => string;
-}
+// ... (Code inchangé pour ProjectCard sauf potentiellement les tailles de texte)
+const ProjectCard: React.FC<{ 
+    project: Project; 
+    isAdmin: boolean; 
+    onEdit: (p: Project) => void; 
+    onDelete: (id: string) => void; 
+    onClick: (p: Project) => void; 
+}> = ({ project, isAdmin, onEdit, onDelete, onClick }) => {
+    const [isHovered, setIsHovered] = useState(false);
+    const [isVisible, setIsVisible] = useState(false);
+    const cardRef = useRef<HTMLDivElement>(null);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [isDriveImage, setIsDriveImage] = useState(false);
 
-const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onDelete, onClick, getGridClass }) => {
-  const [isHovered, setIsHovered] = useState(false);
-  const [isVisible, setIsVisible] = useState(false);
-  const [isImageLoaded, setIsImageLoaded] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        if (!('IntersectionObserver' in window)) {
+            setIsVisible(true);
+            return;
+        }
+        const observer = new IntersectionObserver(([entry]) => {
+            setIsVisible(entry.isIntersecting);
+        }, { threshold: 0.1 });
 
-  // Intersection Observer for the card itself
-  useEffect(() => {
-    if (!('IntersectionObserver' in window)) {
-      setIsVisible(true);
-      return;
-    }
-    const observer = new IntersectionObserver(([entry]) => {
-      setIsVisible(entry.isIntersecting);
-    }, { threshold: 0.1, rootMargin: '100px' }); // Load a bit before it enters
-    
-    if (cardRef.current) observer.observe(cardRef.current);
-    return () => observer.disconnect();
-  }, []);
+        if (cardRef.current) observer.observe(cardRef.current);
+        return () => observer.disconnect();
+    }, []);
 
-  const hasVideo = !!project.videoUrl;
-  const hasImage = !!project.imageUrl;
-  // Detect if the "Image" is actually a Google Drive link (which needs iframe)
-  const isDriveImage = hasImage && project.imageUrl!.includes('drive.google.com');
+    useEffect(() => {
+        if (project.imageUrl && project.imageUrl.includes('drive.google.com')) {
+            setIsDriveImage(true);
+        }
+    }, [project.imageUrl]);
 
-  const showHoverPreview = hasVideo && hasImage;
+    const getGridClass = (size?: string, category?: ProjectCategory) => {
+        if (category === ProjectCategory.REELS) return 'row-span-4'; // Mobile 4 rows (130px each)
+        if (size === 'tall') return 'row-span-4';
+        if (size === 'portrait') return 'row-span-3'; // 3:4 aspect
+        if (size === 'wide') return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2';
+        if (size === 'large') return 'col-span-1 row-span-2 md:col-span-2 md:row-span-2';
+        return 'row-span-2'; // Normal square
+    };
 
-  return (
-    <div
-      ref={cardRef}
-      onClick={() => onClick(project)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transform transition-all duration-300 lg:hover:scale-[1.03] lg:hover:z-20 ${getGridClass(project.size)}`}
-    >
-      {/* Background Media */}
-      {hasImage && !isDriveImage ? (
-        <>
-          {/* Skeleton Placeholder */}
-          {!isImageLoaded && <div className="absolute inset-0 bg-gray-200 animate-pulse z-0" />}
-          <img
-            src={project.imageUrl}
-            alt={project.title}
-            loading="lazy"
-            decoding="async"
-            onLoad={() => setIsImageLoaded(true)}
-            className={`w-full h-full object-cover transition-all duration-700 z-0 relative ${
-              isImageLoaded 
-                ? 'opacity-100 blur-0 scale-100' 
-                : 'opacity-0 blur-lg scale-105'
-            }`}
-          />
-        </>
-      ) : (hasImage && isDriveImage) || hasVideo ? (
-          <SmartVideoPlayer
-          src={(hasImage && isDriveImage) ? project.imageUrl! : project.videoUrl!}
-          className="w-full h-full pointer-events-none"
-          autoPlay={true}
-        />
-      ) : (
-        <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
-          <Maximize2 className="w-12 h-12" />
-        </div>
-      )}
+    return (
+        <div 
+            ref={cardRef}
+            className={`group relative rounded-3xl overflow-hidden bg-gray-100 cursor-none ${getGridClass(project.size, project.category)} hover:scale-[1.02] transition-transform duration-500 ease-out`}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
+            onClick={() => onClick(project)}
+        >
+            {/* Media Content */}
+            {isVisible && (
+                <>
+                    {/* Main Visual */}
+                    {project.imageUrl && !isDriveImage ? (
+                        <div className="w-full h-full relative">
+                            {/* Blur Placeholder */}
+                            <div className={`absolute inset-0 bg-gray-200 transition-opacity duration-700 ${imageLoaded ? 'opacity-0' : 'opacity-100'}`} />
+                            <img 
+                                src={project.imageUrl} 
+                                alt={project.title}
+                                loading="lazy"
+                                decoding="async"
+                                onLoad={() => setImageLoaded(true)}
+                                className={`w-full h-full object-cover transition-all duration-700 ${imageLoaded ? 'opacity-100 blur-0 scale-100' : 'opacity-0 blur-xl scale-105'}`}
+                            />
+                        </div>
+                    ) : (
+                         /* Fallback Video Loop or Drive Image Iframe */
+                         <SmartVideoPlayer 
+                            src={project.imageUrl && isDriveImage ? `https://drive.google.com/file/d/${project.imageUrl.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || ''}/preview` : (project.videoUrl || '')}
+                            className="w-full h-full object-cover"
+                            autoPlay={true}
+                         />
+                    )}
 
-      {/* Lazy Hover Video Preview (Only if we have a separate video URL) */}
-      {showHoverPreview && (
-        <LazyHoverPreview 
-          src={project.videoUrl!} 
-          isHovered={isHovered} 
-          isParentVisible={isVisible}
-        />
-      )}
-      
-      {/* Admin Overlay Controls */}
-      {isAdmin && (
-        <div className="absolute top-3 right-3 z-40 flex gap-2">
-          <button 
-            onClick={(e) => onEdit(project, e)}
-            className="p-3 bg-white/90 hover:bg-brand-accent rounded-full text-brand-black hover:text-white backdrop-blur-sm transition-colors shadow-lg active:scale-90"
-            title="Modifier"
-          >
-            <Edit2 className="w-4 h-4" />
-          </button>
-          <button 
-            onClick={(e) => onDelete(project.id, e)}
-            className="p-3 bg-white/90 hover:bg-red-500 rounded-full text-brand-black hover:text-white backdrop-blur-sm transition-colors shadow-lg active:scale-90"
-            title="Supprimer"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      )}
+                    {/* Hover Video Preview (Only if videoUrl exists and NOT Drive Image) */}
+                    {project.videoUrl && !isDriveImage && (
+                        <LazyHoverPreview src={project.videoUrl} isHovered={isHovered} isParentVisible={isVisible} />
+                    )}
+                </>
+            )}
 
-      {/* Content Overlay - Always show Title on mobile ? No, keep clean. Show on hover for desktop, maybe subtle gradient on mobile */}
-      <div className="absolute inset-0 z-20 bg-gradient-to-t from-brand-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8 pointer-events-none">
-        <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
-          <div className="flex items-center gap-2 mb-3">
-              <span className="text-white text-[10px] font-bold uppercase tracking-wider bg-brand-accent px-3 py-1 rounded-full shadow-lg">
-                {project.category}
-              </span>
-          </div>
-          
-          <h3 className="text-2xl font-black text-white leading-tight mb-1 drop-shadow-md">{project.title}</h3>
-          <p className="text-gray-300 font-medium text-sm mb-4 drop-shadow-sm">{project.client}</p>
-
-          {/* Metrics */}
-          {project.metrics && (
-            <div className="flex flex-wrap gap-2 mt-2">
-              {project.metrics.map((m, idx) => (
-                <div key={idx} className="bg-white/10 border border-white/20 px-3 py-1.5 rounded-lg text-xs text-white backdrop-blur-md">
-                  <span className="opacity-70 mr-1.5">{m.label}</span>
-                  <span className="font-bold">{m.value}</span>
+            {/* Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4 md:p-6">
+                <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
+                    <span className="inline-block px-2 py-1 bg-brand-accent text-white text-[9px] md:text-[10px] font-bold uppercase tracking-wider rounded-md mb-2">
+                        {project.category}
+                    </span>
+                    <h3 className="text-white font-bold text-sm md:text-lg leading-tight">{project.title}</h3>
+                    {project.client && <p className="text-gray-300 text-xs md:text-sm mt-1">{project.client}</p>}
                 </div>
-              ))}
             </div>
-          )}
+
+            {/* Admin Controls */}
+            {isAdmin && (
+                <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-30" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => onEdit(project)} className="p-2 bg-white/90 rounded-full hover:bg-white text-brand-black transition-colors shadow-sm">
+                        <Edit2 className="w-3 h-3 md:w-4 md:h-4" />
+                    </button>
+                    <button onClick={() => onDelete(project.id)} className="p-2 bg-white/90 rounded-full hover:bg-red-50 text-red-500 transition-colors shadow-sm">
+                        <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+                    </button>
+                </div>
+            )}
         </div>
-      </div>
-    </div>
-  );
+    );
 };
 
 export const PortfolioGallery: React.FC = () => {
-  const { projects, isAdmin, deleteProject, updateProject, addProject } = useAdmin();
-  const [filter, setFilter] = useState<string>('ALL');
-  
-  // State for modals
-  const [isFormOpen, setIsFormOpen] = useState(false);
+  const { projects, isAdmin, addProject, updateProject, deleteProject } = useAdmin();
+  const [filter, setFilter] = useState<ProjectCategory | 'ALL'>('ALL');
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProject, setEditingProject] = useState<Project | undefined>(undefined);
-  const [viewingProject, setViewingProject] = useState<Project | null>(null);
   
-  // Viewer Image Loading State
-  const [isViewerImageLoaded, setIsViewerImageLoaded] = useState(false);
-
-  // Manage body scroll when viewer is open
-  useEffect(() => {
-    if (viewingProject) {
-      document.body.style.overflow = 'hidden';
-      setIsViewerImageLoaded(false); // Reset loading state
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    return () => { document.body.style.overflow = 'unset'; };
-  }, [viewingProject]);
+  // Viewer State
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   const filteredProjects = filter === 'ALL' 
     ? projects 
     : projects.filter(p => p.category === filter);
 
-  const categories = ['ALL', ...Object.values(ProjectCategory)];
-
-  // Refined grid logic
-  const getGridClassRefined = (size?: string) => {
-      switch(size) {
-          case 'tall': return 'row-span-4 col-span-1'; // 9:16 REELS
-          case 'portrait': return 'row-span-3 col-span-1'; // 3:4 PORTRAIT
-          case 'wide': return 'col-span-1 md:col-span-2 row-span-2'; // 16:9
-          case 'large': return 'col-span-2 row-span-4'; // 2x2
-          default: return 'col-span-1 row-span-2'; // 1:1 SQUARE
-      }
-  };
-
-  // Helper to get aspect ratio for similar projects thumbnails
-  const getAspectRatioClass = (size?: string) => {
-    switch (size) {
-      case 'tall': return 'aspect-[9/16]';
-      case 'portrait': return 'aspect-[3/4]';
-      case 'wide': return 'aspect-video';
-      case 'large': return 'aspect-square';
-      default: return 'aspect-square';
-    }
-  };
-
-  const handleProjectClick = (project: Project) => {
-    setViewingProject(project);
-  };
-
-  const handleEditClick = (project: Project, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleEdit = (project: Project) => {
     setEditingProject(project);
-    setIsFormOpen(true);
+    setIsModalOpen(true);
   };
 
-  const handleDeleteClick = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (window.confirm('Voulez-vous vraiment supprimer ce projet ?')) {
-      deleteProject(id);
+  const handleDelete = async (id: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce projet ?')) {
+      await deleteProject(id);
     }
   };
 
-  const handleAddNew = () => {
-    setEditingProject(undefined);
-    setIsFormOpen(true);
-  };
-
-  const handleSaveProject = async (project: Project) => {
+  const handleSave = async (project: Project) => {
     if (editingProject) {
       await updateProject(project);
     } else {
-      await addProject({ ...project, id: Date.now().toString() });
+      await addProject(project);
     }
+    setIsModalOpen(false);
+    setEditingProject(undefined);
   };
 
-  const similarProjects = viewingProject 
-    ? projects
-        .filter(p => p.category === viewingProject.category && p.id !== viewingProject.id)
-        .slice(0, 2) 
-    : [];
+  const getAspectRatioClass = (size?: string) => {
+      if (size === 'tall' || size === 'portrait') return 'aspect-[9/16]';
+      if (size === 'wide') return 'aspect-video';
+      return 'aspect-square';
+  };
 
   return (
-    <section id="work" className="py-24 bg-brand-light min-h-screen relative">
+    <section id="work" className="py-12 md:py-24 bg-white">
       <div className="container mx-auto px-4">
         
-        {/* Navigation Filters */}
-        <div className="sticky top-24 z-30 mb-16">
-          <div className="relative flex justify-center items-center">
-            <div className="flex overflow-x-auto gap-2 no-scrollbar bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-sm border border-gray-100 max-w-full">
-              {categories.map((cat) => (
+        {/* Filters - Centered & Compact */}
+        <div className="relative flex justify-center mb-12 md:mb-16">
+            <div className="flex flex-wrap justify-center gap-2 bg-gray-50 p-1.5 md:p-2 rounded-full border border-gray-100 overflow-x-auto max-w-full no-scrollbar">
+            <button
+                onClick={() => setFilter('ALL')}
+                className={`px-4 py-2 rounded-full text-[10px] md:text-xs font-bold transition-all whitespace-nowrap ${
+                filter === 'ALL' ? 'bg-brand-black text-white shadow-md' : 'text-gray-500 hover:text-brand-black hover:bg-gray-200'
+                }`}
+            >
+                TOUT
+            </button>
+            {Object.values(ProjectCategory).map((cat) => (
                 <button
-                  key={cat}
-                  onClick={() => setFilter(cat)}
-                  className={`whitespace-nowrap px-6 py-3 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 active:scale-95 ${
-                    filter === cat
-                      ? 'bg-brand-black text-white shadow-lg'
-                      : 'text-gray-500 hover:text-brand-black hover:bg-gray-100'
-                  }`}
+                key={cat}
+                onClick={() => setFilter(cat)}
+                className={`px-4 py-2 rounded-full text-[10px] md:text-xs font-bold transition-all whitespace-nowrap ${
+                    filter === cat ? 'bg-brand-black text-white shadow-md' : 'text-gray-500 hover:text-brand-black hover:bg-gray-200'
+                }`}
                 >
-                  {cat === 'ALL' ? 'Tout' : cat}
+                {cat.toUpperCase()}
                 </button>
-              ))}
+            ))}
             </div>
 
+             {/* Admin Add Button - Absolute Right on Desktop */}
             {isAdmin && (
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:block">
-                <button 
-                  onClick={handleAddNew}
-                  className="flex items-center gap-2 bg-brand-accent hover:bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95"
-                >
-                  <Plus className="w-5 h-5" />
-                  Nouveau
-                </button>
-              </div>
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden md:block">
+                     <button 
+                        onClick={() => { setEditingProject(undefined); setIsModalOpen(true); }}
+                        className="flex items-center gap-2 bg-brand-accent text-white px-5 py-2.5 rounded-full text-xs font-bold hover:bg-blue-700 transition-all shadow-lg active:scale-95"
+                    >
+                        <Plus className="w-4 h-4" />
+                        NOUVEAU
+                    </button>
+                </div>
             )}
-          </div>
-          
-          {isAdmin && (
-            <div className="lg:hidden mt-4 flex justify-center">
-               <button 
-                  onClick={handleAddNew}
-                  className="flex items-center gap-2 bg-brand-accent hover:bg-blue-600 text-white px-6 py-3 rounded-2xl font-bold transition-all shadow-lg hover:shadow-blue-500/30 active:scale-95 w-full justify-center"
+        </div>
+        
+        {/* Mobile Admin Button */}
+        {isAdmin && (
+            <div className="md:hidden flex justify-center mb-8">
+                 <button 
+                    onClick={() => { setEditingProject(undefined); setIsModalOpen(true); }}
+                    className="flex items-center gap-2 bg-brand-accent text-white px-6 py-3 rounded-full text-xs font-bold hover:bg-blue-700 transition-all shadow-lg active:scale-95"
                 >
-                  <Plus className="w-5 h-5" />
-                  Ajouter un projet
+                    <Plus className="w-4 h-4" />
+                    AJOUTER UN PROJET
                 </button>
             </div>
-          )}
-        </div>
+        )}
 
-        {/* Masonry/Bento Grid with ProjectCard Component */}
-        {/* OPTIMISATION MOBILE : auto-rows plus petit sur mobile (130px) pour éviter les éléments trop grands */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[130px] md:auto-rows-[180px]">
+        {/* Gallery Grid - Mobile rows are smaller (130px) */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-6 auto-rows-[130px] md:auto-rows-[180px]">
           {filteredProjects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              isAdmin={isAdmin}
-              onEdit={handleEditClick}
-              onDelete={handleDeleteClick}
-              onClick={handleProjectClick}
-              getGridClass={getGridClassRefined}
+            <ProjectCard 
+                key={project.id} 
+                project={project} 
+                isAdmin={isAdmin} 
+                onEdit={handleEdit} 
+                onDelete={handleDelete}
+                onClick={setSelectedProject}
             />
           ))}
         </div>
       </div>
 
-      {/* Admin Edit Modal */}
-      <ProjectFormModal 
-        isOpen={isFormOpen} 
-        onClose={() => setIsFormOpen(false)} 
-        onSave={handleSaveProject}
+      {/* Project Form Modal */}
+      <ProjectFormModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleSave}
         initialData={editingProject}
       />
 
-      {/* Project Viewer Modal */}
-      {viewingProject && (
-        <div 
-          className="fixed inset-0 z-[100] bg-brand-dark/95 backdrop-blur-xl flex items-center justify-center p-4" 
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setViewingProject(null);
-          }}
-        >
-          <button 
-            className="absolute top-4 right-4 md:top-8 md:right-8 text-white/50 hover:text-white transition-colors z-[110] p-2 hover:bg-white/10 rounded-full active:scale-95"
-            onClick={() => setViewingProject(null)}
-          >
-            <X className="w-10 h-10" />
-          </button>
+      {/* Project Viewer Modal (Lightbox) */}
+      {selectedProject && (
+        <div className="fixed inset-0 z-[60] bg-white/95 backdrop-blur-md flex items-center justify-center p-0 md:p-8 animate-fade-in overflow-y-auto">
+             <button 
+                onClick={() => setSelectedProject(null)}
+                className="fixed top-4 right-4 md:top-8 md:right-8 p-3 bg-gray-100 hover:bg-gray-200 rounded-full text-brand-black transition-colors z-50 shadow-sm"
+            >
+                <X className="w-5 h-5 md:w-6 md:h-6" />
+            </button>
 
-          <div 
-            className="max-w-7xl w-full max-h-[90vh] flex flex-col md:flex-row bg-white rounded-[2.5rem] overflow-hidden shadow-2xl animate-fade-in relative" 
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Media Area */}
-            <div className="flex-1 bg-black flex items-center justify-center relative min-h-[400px] bg-grid-white/[0.05]">
-              {viewingProject.videoUrl ? (
-                <SmartVideoPlayer 
-                  src={viewingProject.videoUrl} 
-                  controls={true}
-                  autoPlay={true}
-                  className={`max-h-[85vh] w-full h-full ${viewingProject.category === ProjectCategory.REELS ? 'max-w-md mx-auto aspect-[9/16]' : 'aspect-video'}`}
-                />
-              ) : viewingProject.imageUrl && viewingProject.imageUrl.includes('drive.google.com') ? (
-                 <SmartVideoPlayer 
-                  src={viewingProject.imageUrl} 
-                  controls={true}
-                  autoPlay={false}
-                  className="max-h-[85vh] w-full h-full aspect-video"
-                />
-              ) : viewingProject.imageUrl ? (
-                <>
-                 {!isViewerImageLoaded && <div className="absolute inset-0 bg-gray-800 animate-pulse" />}
-                 <img 
-                  src={viewingProject.imageUrl} 
-                  alt={viewingProject.title} 
-                  loading="lazy"
-                  decoding="async"
-                  onLoad={() => setIsViewerImageLoaded(true)}
-                  className={`w-full h-full max-h-[85vh] object-contain transition-all duration-700 ${
-                    isViewerImageLoaded ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'
-                  }`}
-                />
-                </>
-              ) : (
-                <div className="text-white">Media non disponible</div>
-              )}
-            </div>
+            <div className="w-full max-w-6xl bg-white md:rounded-[2rem] shadow-2xl overflow-hidden flex flex-col md:flex-row min-h-screen md:min-h-[85vh] border border-gray-100">
+                
+                {/* Media Section - Takes 60% width on Desktop */}
+                <div className="w-full md:w-[60%] bg-black flex items-center justify-center relative group">
+                     {selectedProject.videoUrl || (selectedProject.imageUrl && selectedProject.imageUrl.includes('drive.google.com')) ? (
+                        <SmartVideoPlayer 
+                            src={selectedProject.videoUrl || `https://drive.google.com/file/d/${selectedProject.imageUrl!.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || ''}/preview`}
+                            className="w-full h-full absolute inset-0"
+                            autoPlay={true}
+                            controls={true}
+                        />
+                     ) : (
+                        <img 
+                            src={selectedProject.imageUrl} 
+                            alt={selectedProject.title} 
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                        />
+                     )}
+                </div>
 
-            {/* Info Area */}
-            <div className="w-full md:w-[400px] lg:w-[450px] p-8 md:p-12 flex flex-col bg-white overflow-y-auto max-h-[50vh] md:max-h-auto">
-               <div className="flex-1">
-                 <span className="text-brand-accent text-xs font-bold uppercase tracking-wider mb-4 px-3 py-1 bg-blue-50 w-fit rounded-full block">
-                   {viewingProject.category}
-                 </span>
-                 <h2 className="text-4xl md:text-5xl font-black text-brand-black mb-2 tracking-tighter leading-none">{viewingProject.title}</h2>
-                 <p className="text-gray-400 font-bold text-lg mb-8 pb-6 border-b border-gray-100">{viewingProject.client}</p>
-
-                 {viewingProject.description && (
-                   <p className="text-gray-600 leading-relaxed mb-8 text-lg">
-                     {viewingProject.description}
-                   </p>
-                 )}
-
-                 {viewingProject.metrics && viewingProject.metrics.length > 0 && (
-                   <div className="space-y-6 mb-8">
-                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Performance Metrics</h3>
-                     <div className="grid grid-cols-2 gap-4">
-                      {viewingProject.metrics.map((m, idx) => (
-                        <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-100 hover:border-brand-accent/30 transition-colors">
-                          <span className="text-gray-400 text-xs font-bold uppercase block mb-1">{m.label}</span>
-                          <span className="text-brand-accent font-black font-mono text-xl md:text-2xl">{m.value}</span>
+                {/* Details Section - Takes 40% width */}
+                <div className="w-full md:w-[40%] p-8 md:p-12 flex flex-col overflow-y-auto bg-white">
+                    <div className="mb-auto">
+                        <div className="flex items-center gap-3 mb-4 md:mb-6">
+                            <span className="px-3 py-1 bg-blue-50 text-brand-accent text-[10px] md:text-xs font-bold uppercase tracking-wider rounded-md">
+                                {selectedProject.category}
+                            </span>
+                            {selectedProject.client && (
+                                <span className="text-gray-400 text-[10px] md:text-xs font-bold uppercase tracking-wider">
+                                    Client: {selectedProject.client}
+                                </span>
+                            )}
                         </div>
-                      ))}
-                     </div>
-                   </div>
-                 )}
+                        
+                        <h2 className="text-2xl md:text-4xl font-black text-brand-black mb-4 md:mb-6 leading-tight">
+                            {selectedProject.title}
+                        </h2>
+                        
+                        {selectedProject.description && (
+                            <p className="text-sm md:text-base text-gray-500 leading-relaxed mb-8">
+                                {selectedProject.description}
+                            </p>
+                        )}
 
-                 {/* Similar Projects Section */}
-                 {similarProjects.length > 0 && (
-                   <div className="mt-6 pt-6 border-t border-gray-100">
-                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Projets Similaires</h3>
-                     <div className="grid grid-cols-2 gap-3 items-start">
-                       {similarProjects.map((simProject) => (
-                         <div 
-                           key={simProject.id} 
-                           onClick={() => setViewingProject(simProject)}
-                           className="group cursor-pointer"
-                         >
-                           {/* Dynamic Aspect Ratio Class applied here */}
-                           <div className={`${getAspectRatioClass(simProject.size)} rounded-xl overflow-hidden mb-2 relative bg-gray-100 w-full`}>
-                             {simProject.imageUrl && !simProject.imageUrl.includes('drive.google.com') ? (
-                                <img 
-                                  src={simProject.imageUrl} 
-                                  alt={simProject.title}
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]"
-                                />
-                             ) : (
-                                <SmartVideoPlayer 
-                                  src={simProject.imageUrl && simProject.imageUrl.includes('drive.google.com') ? simProject.imageUrl : simProject.videoUrl!} 
-                                  className="w-full h-full object-cover pointer-events-none"
-                                />
-                             )}
-                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
-                           </div>
-                           <h4 className="text-sm font-bold text-brand-black leading-tight group-hover:text-brand-accent transition-colors truncate">
-                             {simProject.title}
-                           </h4>
-                         </div>
-                       ))}
-                     </div>
-                   </div>
-                 )}
-               </div>
-               
+                        {/* Metrics Grid */}
+                        {selectedProject.metrics && selectedProject.metrics.length > 0 && (
+                            <div className="grid grid-cols-2 gap-4 mb-8">
+                                {selectedProject.metrics.map((metric, idx) => (
+                                    <div key={idx} className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                                        <p className="text-xl md:text-2xl font-black text-brand-black">{metric.value}</p>
+                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">{metric.label}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Similar Projects Suggestion */}
+                    <div className="mt-8 pt-8 border-t border-gray-100">
+                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Projets Similaires</p>
+                        <div className="grid grid-cols-2 gap-4">
+                            {projects
+                                .filter(p => p.category === selectedProject.category && p.id !== selectedProject.id)
+                                .slice(0, 2)
+                                .map(sim => (
+                                    <div 
+                                        key={sim.id} 
+                                        onClick={() => setSelectedProject(sim)}
+                                        className={`bg-gray-100 rounded-xl overflow-hidden cursor-pointer hover:opacity-80 transition-opacity ${getAspectRatioClass(sim.size)}`}
+                                    >
+                                         <div className="w-full h-full relative">
+                                             <div className="absolute inset-0 bg-gray-200" />
+                                             {sim.imageUrl && !sim.imageUrl.includes('drive.google.com') ? (
+                                                <img src={sim.imageUrl} alt={sim.title} className="w-full h-full object-cover" loading="lazy" />
+                                             ) : (
+                                                <SmartVideoPlayer src={sim.videoUrl || `https://drive.google.com/file/d/${sim.imageUrl?.match(/id=([a-zA-Z0-9_-]+)/)?.[1] || ''}/preview`} className="w-full h-full object-cover" />
+                                             )}
+                                         </div>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    </div>
+
+                    <div className="mt-8 flex gap-4">
+                        <a href="#contact" onClick={() => setSelectedProject(null)} className="flex-1 bg-brand-black text-white py-4 rounded-xl text-xs md:text-sm font-bold text-center hover:bg-brand-accent transition-colors shadow-lg active:scale-95 flex items-center justify-center gap-2">
+                            Discuter du projet <ArrowRight className="w-4 h-4" />
+                        </a>
+                    </div>
+                </div>
             </div>
-          </div>
         </div>
       )}
     </section>

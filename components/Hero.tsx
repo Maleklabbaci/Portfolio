@@ -13,25 +13,25 @@ export const Hero: React.FC = () => {
       
       {/* Content */}
       <div className="relative z-10 container mx-auto px-4 text-center flex flex-col items-center">
-        <h1 className="text-7xl md:text-[10rem] font-black text-brand-black tracking-tighter leading-none mb-8 select-none">
+        <h1 className="text-4xl sm:text-5xl md:text-[8rem] font-black text-brand-black tracking-tighter leading-none mb-4 md:mb-8 select-none">
           iVISION<span className="text-brand-accent">.</span>
         </h1>
         
-        <div className="flex flex-col items-center gap-8">
-          <p className="text-xl md:text-2xl text-gray-500 font-medium tracking-wide max-w-2xl mx-auto leading-relaxed">
+        <div className="flex flex-col items-center gap-5 md:gap-8">
+          <p className="text-sm sm:text-base md:text-xl text-gray-500 font-medium tracking-wide max-w-xs md:max-w-2xl mx-auto leading-relaxed px-2">
             L'agence digitale qui fusionne <span className="text-brand-accent font-bold">Créativité</span> et <span className="text-brand-black font-bold">Performance</span>.
           </p>
           
-          <div className="flex gap-4 mt-4">
+          <div className="flex gap-3 md:gap-4 mt-2 md:mt-4">
             <a 
               href="#work" 
-              className="bg-brand-black text-white px-8 py-4 rounded-full font-bold hover:bg-brand-accent transition-all shadow-xl hover:shadow-2xl active:scale-95 duration-200"
+              className="bg-brand-black text-white px-5 py-3 md:px-8 md:py-4 text-xs md:text-sm rounded-full font-bold hover:bg-brand-accent transition-all shadow-xl hover:shadow-2xl active:scale-95 duration-200"
             >
               Voir les travaux
             </a>
             <a 
               href="#contact" 
-              className="bg-white text-brand-black border border-gray-200 px-8 py-4 rounded-full font-bold hover:border-brand-black transition-all hover:bg-gray-50 active:scale-95 duration-200"
+              className="bg-white text-brand-black border border-gray-200 px-5 py-3 md:px-8 md:py-4 text-xs md:text-sm rounded-full font-bold hover:border-brand-black transition-all hover:bg-gray-50 active:scale-95 duration-200"
             >
               Nous contacter
             </a>
@@ -41,10 +41,10 @@ export const Hero: React.FC = () => {
         {/* Scroll Indicator - Positioned in flow (middle) instead of absolute bottom */}
         <button 
           onClick={scrollToWork}
-          className="mt-24 flex flex-col items-center gap-2 text-gray-400 animate-bounce cursor-pointer hover:text-brand-accent transition-colors p-4"
+          className="mt-12 md:mt-24 flex flex-col items-center gap-2 text-gray-400 animate-bounce cursor-pointer hover:text-brand-accent transition-colors p-4"
         >
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em]">Scroll</span>
-          <ArrowDown className="w-5 h-5" />
+          <span className="text-[8px] md:text-[10px] font-bold uppercase tracking-[0.2em]">Scroll</span>
+          <ArrowDown className="w-3 h-3 md:w-5 md:h-5" />
         </button>
       </div>
     </section>
