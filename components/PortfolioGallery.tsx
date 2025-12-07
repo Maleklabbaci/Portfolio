@@ -6,6 +6,7 @@ import { Maximize2, Edit2, Trash2, Plus, X, ArrowRight, AlertCircle } from 'luci
 
 // --- SMART VIDEO PLAYER (Main Content) ---
 // Détecte Google Drive / YouTube et utilise un Iframe si nécessaire, sinon Video HTML5
+// Utilise IntersectionObserver pour ne charger/jouer que si visible à l'écran
 const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: boolean; controls?: boolean }> = ({ src, className, autoPlay = false, controls = false }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [hasError, setHasError] = useState(false);
@@ -21,7 +22,9 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
       return;
     }
     const observer = new IntersectionObserver(([entry]) => {
-      if (entry.isIntersecting) setIsVisible(true);
+      // Chargement dynamique : On charge quand c'est visible, on décharge (optionnel) ou pause quand ça sort
+      // Pour les performances maximales sur une grande grille, on toggle la visibilité
+      setIsVisible(entry.isIntersecting);
     }, { threshold: 0.1 });
     
     if (containerRef.current) observer.observe(containerRef.current);
@@ -40,12 +43,15 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
   const driveMatch = src.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
   const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
 
+  // Render logic based on visibility to save resources
+  const shouldRender = isVisible || !autoPlay; // If it's not autoplay (e.g. click to play), we might want to keep it ready, but here we prioritize scroll perf
+
   if (driveMatch) {
     const driveId = driveMatch[1];
     const embedUrl = `https://drive.google.com/file/d/${driveId}/preview`;
     return (
       <div ref={containerRef} className={`relative bg-black ${className}`}>
-        {isVisible && (
+        {shouldRender && (
           <iframe
             src={embedUrl}
             className="w-full h-full absolute inset-0 border-0"
@@ -64,7 +70,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
     const embedUrl = `https://www.youtube.com/embed/${ytId}?autoplay=${autoPlay ? 1 : 0}&mute=1&loop=1&playlist=${ytId}&rel=0&modestbranding=1&controls=${controls ? 1 : 0}`;
     return (
       <div ref={containerRef} className={`relative bg-black ${className}`}>
-        {isVisible && (
+        {shouldRender && (
           <iframe
             src={embedUrl}
             className="w-full h-full absolute inset-0 border-0"
@@ -79,7 +85,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
 
   return (
     <div ref={containerRef} className={className}>
-       {isVisible && (
+       {shouldRender && (
          <video
             src={src}
             className="w-full h-full object-cover"
@@ -96,7 +102,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
 };
 
 // --- LAZY HOVER PREVIEW ---
-// Handles hover previews efficiently using IntersectionObserver and conditional rendering
+// Handles hover previews efficiently using IntersectionObserver from Parent
 const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisible: boolean }> = ({ src, isHovered, isParentVisible }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   
@@ -117,7 +123,7 @@ const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisi
     }
   }, [isHovered]);
 
-  // If parent card isn't visible in viewport, don't render anything to save memory
+  // If parent card isn't visible in viewport, don't render anything to save memory (Virtualization logic)
   if (!isParentVisible) return null;
 
   const driveMatch = src.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
@@ -127,7 +133,6 @@ const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisi
   if (driveMatch) {
     if (!isHovered) return null;
     const driveId = driveMatch[1];
-    // Autoplay might be blocked by browser policies in iframe, but we try
     return (
       <iframe
         src={`https://drive.google.com/file/d/${driveId}/preview?autoplay=1`}
@@ -187,7 +192,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
     }
     const observer = new IntersectionObserver(([entry]) => {
       setIsVisible(entry.isIntersecting);
-    }, { threshold: 0.1 });
+    }, { threshold: 0.1 }); // Load when 10% visible
     
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
@@ -325,13 +330,25 @@ export const PortfolioGallery: React.FC = () => {
 
   const categories = ['ALL', ...Object.values(ProjectCategory)];
 
-  const getGridClass = (size?: string) => {
-    switch(size) {
-      case 'tall': return 'row-span-2 col-span-1';
-      case 'portrait': return 'row-span-2 col-span-1';
-      case 'wide': return 'col-span-1 md:col-span-2 row-span-1';
-      case 'large': return 'col-span-2 row-span-2';
-      default: return 'col-span-1 row-span-1';
+  // Refined grid logic to match user request (3:4 different from 9:16)
+  const getGridClassRefined = (size?: string) => {
+      switch(size) {
+          case 'tall': return 'row-span-4 col-span-1'; // 9:16 REELS
+          case 'portrait': return 'row-span-3 col-span-1'; // 3:4 PORTRAIT
+          case 'wide': return 'col-span-1 md:col-span-2 row-span-2'; // 16:9
+          case 'large': return 'col-span-2 row-span-4'; // 2x2
+          default: return 'col-span-1 row-span-2'; // 1:1 SQUARE
+      }
+  };
+
+  // Helper to get aspect ratio for similar projects thumbnails
+  const getAspectRatioClass = (size?: string) => {
+    switch (size) {
+      case 'tall': return 'aspect-[9/16]';
+      case 'portrait': return 'aspect-[3/4]';
+      case 'wide': return 'aspect-video';
+      case 'large': return 'aspect-square';
+      default: return 'aspect-square';
     }
   };
 
@@ -421,7 +438,7 @@ export const PortfolioGallery: React.FC = () => {
         </div>
 
         {/* Masonry/Bento Grid with ProjectCard Component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[350px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[180px]">
           {filteredProjects.map((project) => (
             <ProjectCard
               key={project.id}
@@ -430,7 +447,7 @@ export const PortfolioGallery: React.FC = () => {
               onEdit={handleEditClick}
               onDelete={handleDeleteClick}
               onClick={handleProjectClick}
-              getGridClass={getGridClass}
+              getGridClass={getGridClassRefined}
             />
           ))}
         </div>
@@ -531,14 +548,15 @@ export const PortfolioGallery: React.FC = () => {
                  {similarProjects.length > 0 && (
                    <div className="mt-6 pt-6 border-t border-gray-100">
                      <h3 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-4">Projets Similaires</h3>
-                     <div className="grid grid-cols-2 gap-3">
+                     <div className="grid grid-cols-2 gap-3 items-start">
                        {similarProjects.map((simProject) => (
                          <div 
                            key={simProject.id} 
                            onClick={() => setViewingProject(simProject)}
                            className="group cursor-pointer"
                          >
-                           <div className="aspect-[4/3] rounded-xl overflow-hidden mb-2 relative bg-gray-100">
+                           {/* Dynamic Aspect Ratio Class applied here */}
+                           <div className={`${getAspectRatioClass(simProject.size)} rounded-xl overflow-hidden mb-2 relative bg-gray-100 w-full`}>
                              {simProject.imageUrl && !simProject.imageUrl.includes('drive.google.com') ? (
                                 <img 
                                   src={simProject.imageUrl} 
@@ -555,7 +573,7 @@ export const PortfolioGallery: React.FC = () => {
                              )}
                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                            </div>
-                           <h4 className="text-sm font-bold text-brand-black leading-tight group-hover:text-brand-accent transition-colors">
+                           <h4 className="text-sm font-bold text-brand-black leading-tight group-hover:text-brand-accent transition-colors truncate">
                              {simProject.title}
                            </h4>
                          </div>
@@ -565,12 +583,6 @@ export const PortfolioGallery: React.FC = () => {
                  )}
                </div>
                
-               <div className="mt-8 pt-6 border-t border-gray-100">
-                  <a href="#contact" onClick={() => setViewingProject(null)} className="flex items-center justify-center w-full bg-brand-black text-white font-bold py-4 rounded-xl hover:bg-brand-accent transition-all group">
-                    <span>Démarrer un projet</span>
-                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                  </a>
-               </div>
             </div>
           </div>
         </div>
