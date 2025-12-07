@@ -63,15 +63,20 @@
         scrollbar-width: none;
       }
 
-      /* CUSTOM CURSOR - Stylish V Shape (Blue Outside, White Inside) */
+      /* CUSTOM CURSOR - "Cute & Functional" Blue Arrow */
       @media (min-width: 1024px) {
         body, a, button, input, select, textarea, [role="button"] {
-          /* SVG Data URI for a Stylish Blue & White V shape */
-          cursor: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='d' x='0' y='0' width='32' height='32'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='1.5' flood-opacity='0.2'/%3E%3C/filter%3E%3Cpath d='M6 8L16 26L26 8' stroke='%232563eb' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' filter='url(%23d)'/%3E%3Cpath d='M6 8L16 26L26 8' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, auto !important;
+          /* 
+             SVG : Small 24x24 arrow.
+             Fill: #2563eb (Blue)
+             Stroke: white (1.5px)
+             Hotspot: 2 2 (Tip of the arrow)
+          */
+          cursor: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='s' x='0' y='0' width='24' height='24'%3E%3CfeDropShadow dx='0' dy='1' stdDeviation='1' flood-opacity='0.15'/%3E%3C/filter%3E%3Cpath d='M3 3L10.5 20.5L13.5 12.5L21.5 9.5L3 3Z' fill='%232563eb' stroke='white' stroke-width='1.5' stroke-linejoin='round' filter='url(%23s)'/%3E%3C/svg%3E") 2 2, auto !important;
         }
-        /* Ensure pointer states keep the V but maybe slightly different if needed, keeping same for consistency */
+        
         .cursor-pointer {
-           cursor: url("data:image/svg+xml,%3Csvg width='32' height='32' viewBox='0 0 32 32' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='d' x='0' y='0' width='32' height='32'%3E%3CfeDropShadow dx='0' dy='2' stdDeviation='1.5' flood-opacity='0.2'/%3E%3C/filter%3E%3Cpath d='M6 8L16 26L26 8' stroke='%232563eb' stroke-width='7' stroke-linecap='round' stroke-linejoin='round' filter='url(%23d)'/%3E%3Cpath d='M6 8L16 26L26 8' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") 16 16, pointer !important;
+           cursor: url("data:image/svg+xml,%3Csvg width='24' height='24' viewBox='0 0 24 24' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='s' x='0' y='0' width='24' height='24'%3E%3CfeDropShadow dx='0' dy='1' stdDeviation='1' flood-opacity='0.15'/%3E%3C/filter%3E%3Cpath d='M3 3L10.5 20.5L13.5 12.5L21.5 9.5L3 3Z' fill='%232563eb' stroke='white' stroke-width='1.5' stroke-linejoin='round' filter='url(%23s)'/%3E%3C/svg%3E") 2 2, pointer !important;
         }
       }
     </style>

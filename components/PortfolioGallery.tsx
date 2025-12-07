@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { useAdmin } from '../context/AdminContext';
@@ -329,6 +328,7 @@ export const PortfolioGallery: React.FC = () => {
   const getGridClass = (size?: string) => {
     switch(size) {
       case 'tall': return 'row-span-2 col-span-1';
+      case 'portrait': return 'row-span-2 col-span-1';
       case 'wide': return 'col-span-1 md:col-span-2 row-span-1';
       case 'large': return 'col-span-2 row-span-2';
       default: return 'col-span-1 row-span-1';

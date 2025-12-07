@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
@@ -45,7 +44,7 @@ const FALLBACK_PROJECTS: Project[] = [
 ];
 
 // Version des données (Incrémenté pour forcer le refresh)
-const DATA_VERSION = 'v29';
+const DATA_VERSION = 'v33';
 
 interface AdminContextType {
   isAdmin: boolean;
