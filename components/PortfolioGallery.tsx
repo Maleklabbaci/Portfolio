@@ -22,10 +22,12 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
       return;
     }
     const observer = new IntersectionObserver(([entry]) => {
-      // Chargement dynamique : On charge quand c'est visible, on décharge (optionnel) ou pause quand ça sort
-      // Pour les performances maximales sur une grande grille, on toggle la visibilité
+      // Chargement dynamique : On charge quand c'est visible (avec une marge de 200px pour précharger avant le scroll)
       setIsVisible(entry.isIntersecting);
-    }, { threshold: 0.1 });
+    }, { 
+      threshold: 0.1,
+      rootMargin: '200px' // Précharge 200px avant d'entrer dans le viewport pour fluidité
+    }); 
     
     if (containerRef.current) observer.observe(containerRef.current);
     return () => observer.disconnect();
@@ -44,7 +46,9 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
   const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
 
   // Render logic based on visibility to save resources
-  const shouldRender = isVisible || !autoPlay; // If it's not autoplay (e.g. click to play), we might want to keep it ready, but here we prioritize scroll perf
+  // On mobile/desktop: if autoPlay is true (Grid), only render when visible.
+  // If controls are on (Viewer), render always if needed but usually visibility is enough.
+  const shouldRender = isVisible || !autoPlay; 
 
   if (driveMatch) {
     const driveId = driveMatch[1];
@@ -57,6 +61,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
             className="w-full h-full absolute inset-0 border-0"
             allow="autoplay; encrypted-media; fullscreen"
             allowFullScreen
+            loading="lazy"
             title="Drive Video"
             onError={() => setHasError(true)}
           />
@@ -76,6 +81,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
             className="w-full h-full absolute inset-0 border-0"
             allow="autoplay; encrypted-media; gyroscope; picture-in-picture"
             allowFullScreen
+            loading="lazy"
             title="YouTube Video"
           />
         )}
@@ -94,6 +100,7 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
             autoPlay={autoPlay}
             controls={controls}
             playsInline
+            preload="metadata"
             onError={() => setHasError(true)}
           />
        )}
@@ -103,28 +110,38 @@ const SmartVideoPlayer: React.FC<{ src: string; className?: string; autoPlay?: b
 
 // --- LAZY HOVER PREVIEW ---
 // Handles hover previews efficiently using IntersectionObserver from Parent
+// Ensures video is loaded strictly on hover
 const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisible: boolean }> = ({ src, isHovered, isParentVisible }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
   
   // Logic for HTML5 videos: Play only when hovered
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isHovered) {
+    if (isHovered && !isMobile) {
+      // Set attributes and play
       video.muted = true;
       video.currentTime = 0;
+      
       const playPromise = video.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {});
+        playPromise.catch(() => {
+          // Auto-play was prevented
+        });
       }
     } else {
       video.pause();
     }
-  }, [isHovered]);
+  }, [isHovered, isMobile]);
 
-  // If parent card isn't visible in viewport, don't render anything to save memory (Virtualization logic)
-  if (!isParentVisible) return null;
+  // If parent card isn't visible in viewport OR it's mobile, don't render anything to save memory
+  if (!isParentVisible || isMobile) return null;
 
   const driveMatch = src.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
   const ytMatch = src.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
@@ -138,6 +155,7 @@ const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisi
         src={`https://drive.google.com/file/d/${driveId}/preview?autoplay=1`}
         className="absolute inset-0 w-full h-full object-cover z-10 border-0 pointer-events-none"
         allow="autoplay"
+        loading="lazy"
       />
     );
   }
@@ -150,15 +168,17 @@ const LazyHoverPreview: React.FC<{ src: string; isHovered: boolean; isParentVisi
         src={`https://www.youtube.com/embed/${ytId}?autoplay=1&mute=1&controls=0&modestbranding=1&loop=1&playlist=${ytId}`}
         className="absolute inset-0 w-full h-full object-cover z-10 border-0 pointer-events-none"
         allow="autoplay"
+        loading="lazy"
       />
     );
   }
 
-  // For HTML5: Mount but don't play until effect triggers
+  // For HTML5: 
+  // Optimization: Only set 'src' if hovered. This prevents ANY network request until hover.
   return (
     <video
       ref={videoRef}
-      src={src}
+      src={isHovered ? src : ''}
       muted
       loop
       playsInline
@@ -192,7 +212,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
     }
     const observer = new IntersectionObserver(([entry]) => {
       setIsVisible(entry.isIntersecting);
-    }, { threshold: 0.1 }); // Load when 10% visible
+    }, { threshold: 0.1, rootMargin: '100px' }); // Load a bit before it enters
     
     if (cardRef.current) observer.observe(cardRef.current);
     return () => observer.disconnect();
@@ -211,7 +231,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
       onClick={() => onClick(project)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transform transition-all duration-300 hover:scale-[1.03] hover:z-20 ${getGridClass(project.size)}`}
+      className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transform transition-all duration-300 lg:hover:scale-[1.03] lg:hover:z-20 ${getGridClass(project.size)}`}
     >
       {/* Background Media */}
       {hasImage && !isDriveImage ? (
@@ -272,7 +292,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, isAdmin, onEdit, onD
         </div>
       )}
 
-      {/* Content Overlay */}
+      {/* Content Overlay - Always show Title on mobile ? No, keep clean. Show on hover for desktop, maybe subtle gradient on mobile */}
       <div className="absolute inset-0 z-20 bg-gradient-to-t from-brand-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8 pointer-events-none">
         <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
           <div className="flex items-center gap-2 mb-3">
@@ -330,7 +350,7 @@ export const PortfolioGallery: React.FC = () => {
 
   const categories = ['ALL', ...Object.values(ProjectCategory)];
 
-  // Refined grid logic to match user request (3:4 different from 9:16)
+  // Refined grid logic
   const getGridClassRefined = (size?: string) => {
       switch(size) {
           case 'tall': return 'row-span-4 col-span-1'; // 9:16 REELS
@@ -438,7 +458,8 @@ export const PortfolioGallery: React.FC = () => {
         </div>
 
         {/* Masonry/Bento Grid with ProjectCard Component */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[180px]">
+        {/* OPTIMISATION MOBILE : auto-rows plus petit sur mobile (130px) pour éviter les éléments trop grands */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[130px] md:auto-rows-[180px]">
           {filteredProjects.map((project) => (
             <ProjectCard
               key={project.id}
