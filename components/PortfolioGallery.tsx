@@ -1,9 +1,54 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { useAdmin } from '../context/AdminContext';
 import { ProjectFormModal } from './ProjectFormModal';
 import { Play, Maximize2, Instagram, TrendingUp, Edit2, Trash2, Plus, X, ArrowRight } from 'lucide-react';
+
+// Composant Vidéo Optimisé (Lazy Load)
+const LazyVideo: React.FC<{ src: string; className?: string }> = ({ src, className }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    // Si l'API IntersectionObserver n'est pas dispo (vieux navigateurs), on ne fait rien de spécial
+    if (!('IntersectionObserver' in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            // La vidéo est visible : on lance la lecture
+            videoRef.current?.play().catch(() => {
+              // Ignore les erreurs d'autoplay (souvent bloqué par le navigateur si pas muted)
+            });
+          } else {
+            // La vidéo n'est plus visible : on pause pour économiser CPU/GPU
+            videoRef.current?.pause();
+          }
+        });
+      },
+      { threshold: 0.1 } // Déclenche quand 10% de la vidéo est visible
+    );
+
+    if (videoRef.current) {
+      observer.observe(videoRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      className={className}
+      muted
+      loop
+      playsInline
+      preload="metadata" // Charge uniquement les métadonnées au début, pas toute la vidéo
+    />
+  );
+};
 
 export const PortfolioGallery: React.FC = () => {
   const { projects, isAdmin, deleteProject, updateProject, addProject } = useAdmin();
@@ -184,12 +229,8 @@ export const PortfolioGallery: React.FC = () => {
                     className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 z-0 relative"
                   />
                 ) : hasVideo ? (
-                   <video
-                    src={project.videoUrl}
-                    muted
-                    loop
-                    autoPlay
-                    playsInline
+                   <LazyVideo
+                    src={project.videoUrl!}
                     className="w-full h-full object-cover z-0 relative"
                   />
                 ) : (
