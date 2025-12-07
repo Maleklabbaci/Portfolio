@@ -1,4 +1,5 @@
 
+
 export enum ProjectCategory {
   REELS = 'Reels & TikTok',
   VIDEO = 'Vidéo 16:9',
@@ -16,7 +17,7 @@ export interface Project {
   description?: string;
   metrics?: { label: string; value: string }[];
   videoUrl?: string; // Optional for playing videos/reels
-  size?: 'normal' | 'tall' | 'wide' | 'large'; // For grid layout
+  size?: 'normal' | 'tall' | 'wide' | 'large' | 'portrait'; // For grid layout
 }
 
 export interface AdMetric {

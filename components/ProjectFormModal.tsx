@@ -1,8 +1,9 @@
 
+
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { processGoogleDriveLink } from '../context/AdminContext';
-import { X, Save, LayoutGrid, RectangleVertical, RectangleHorizontal, Square, Loader2, Image as ImageIcon, Video, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { X, Save, LayoutGrid, RectangleVertical, RectangleHorizontal, Square, Loader2, Image as ImageIcon, Video, AlertCircle, CheckCircle2, Ratio } from 'lucide-react';
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -174,10 +175,11 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
   };
 
   const sizeOptions = [
-    { id: 'normal', label: 'Carré', icon: Square, class: 'aspect-square' },
-    { id: 'tall', label: 'Vertical', icon: RectangleVertical, class: 'aspect-[9/16]' },
-    { id: 'wide', label: 'Horizontal', icon: RectangleHorizontal, class: 'aspect-video' },
-    { id: 'large', label: 'Large', icon: LayoutGrid, class: 'aspect-square' },
+    { id: 'normal', label: 'Carré (1:1)', icon: Square, class: 'aspect-square' },
+    { id: 'tall', label: 'Vertical (9:16)', icon: RectangleVertical, class: 'aspect-[9/16]' },
+    { id: 'portrait', label: 'Portrait (3:4)', icon: Ratio, class: 'aspect-[3/4]' },
+    { id: 'wide', label: 'Horizontal (16:9)', icon: RectangleHorizontal, class: 'aspect-video' },
+    { id: 'large', label: 'Large (2x2)', icon: LayoutGrid, class: 'aspect-square' },
   ];
 
   const getEmbedUrl = (url: string) => {
