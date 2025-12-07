@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { processGoogleDriveLink } from '../context/AdminContext';
-import { X, Save, Plus, Trash2, LayoutGrid, RectangleVertical, RectangleHorizontal, Square, Loader2, Image as ImageIcon, Video } from 'lucide-react';
+import { X, Save, LayoutGrid, RectangleVertical, RectangleHorizontal, Square, Loader2, Image as ImageIcon, Video, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface ProjectFormModalProps {
   isOpen: boolean;
@@ -23,8 +23,10 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
   const [previewMedia, setPreviewMedia] = useState<{type: 'image' | 'video' | null, url: string | null}>({ type: null, url: null });
   const [isMediaLoading, setIsMediaLoading] = useState(false);
+  const [mediaError, setMediaError] = useState<string | null>(null);
 
   // Reset form when modal opens or initialData changes
   useEffect(() => {
@@ -44,6 +46,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
         });
       }
       setIsSaving(false);
+      setIsValidating(false);
+      setMediaError(null);
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = 'unset';
@@ -56,6 +60,8 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
 
   // Update preview when URLs change
   useEffect(() => {
+    setMediaError(null); // Reset error on new input
+    
     const img = processGoogleDriveLink(formData.imageUrl) || formData.imageUrl;
     const vid = processGoogleDriveLink(formData.videoUrl) || formData.videoUrl;
 
@@ -64,7 +70,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
       setIsMediaLoading(true);
     } else if (vid) {
       setPreviewMedia({ type: 'video', url: vid });
-      setIsMediaLoading(true); // Video loading is trickier, but we can assume logic
+      setIsMediaLoading(true); 
     } else {
       setPreviewMedia({ type: null, url: null });
       setIsMediaLoading(false);
@@ -73,6 +79,38 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
 
   if (!isOpen) return null;
 
+  // --- VALIDATION LOGIC ---
+  const validateMediaLink = async (url: string, type: 'image' | 'video'): Promise<boolean> => {
+    if (!url) return true; // Empty is fine (handled by required check elsewhere)
+
+    // 1. Check Google Drive Format (Enhanced regex to handle processed links with parameters)
+    if (url.includes('drive.google.com')) {
+       // Drive uses iframes, we can't fetch them, but we can check if ID exists
+       // Matches: /file/d/ID, open?id=ID, uc?id=ID, uc?export=download&id=ID
+       const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
+       return !!driveMatch;
+    }
+
+    // 2. Check YouTube Format
+    if (url.includes('youtube.com') || url.includes('youtu.be')) {
+       const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+       return !!ytMatch;
+    }
+
+    // 3. Direct Image Validation
+    if (type === 'image') {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(true);
+        img.onerror = () => resolve(false);
+        img.src = url;
+      });
+    }
+
+    // 4. Fallback for direct videos (can't easily validate without CORS, assume true if not empty)
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -80,13 +118,44 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
       alert("⚠️ Attention : Vous devez ajouter au moins une Image OU une Vidéo.");
       return;
     }
+    
+    // --- PRE-SAVE VALIDATION STEP ---
+    setIsValidating(true);
+    let isValid = true;
+    let errorMessage = null;
+
+    if (formData.imageUrl) {
+       // Use processed link for validation to ensure Drive links are handled correctly
+       const validImg = await validateMediaLink(processGoogleDriveLink(formData.imageUrl) || formData.imageUrl!, 'image');
+       if (!validImg) {
+         isValid = false;
+         errorMessage = "L'URL de l'image semble invalide ou inaccessible.";
+       }
+    }
+
+    // Note: Video validation is looser because of CORS on direct links
+    if (isValid && formData.videoUrl) {
+       const validVid = await validateMediaLink(processGoogleDriveLink(formData.videoUrl) || formData.videoUrl!, 'video');
+       if (!validVid) {
+          isValid = false;
+          errorMessage = "Le format du lien vidéo (Drive/YouTube) semble incorrect.";
+       }
+    }
+
+    setIsValidating(false);
+
+    if (!isValid) {
+      setMediaError(errorMessage);
+      if(!confirm(`${errorMessage}\n\nVoulez-vous quand même forcer l'enregistrement ?`)) {
+        return;
+      }
+    }
 
     setIsSaving(true);
     try {
       await onSave(formData as Project);
       onClose();
     } catch (e) {
-      // Error is handled in context, but we stop loading here
       setIsSaving(false);
     }
   };
@@ -97,21 +166,13 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     }
   };
 
-  const addMetric = () => {
-    const newMetrics = [...(formData.metrics || []), { label: '', value: '' }];
-    setFormData({ ...formData, metrics: newMetrics });
-  };
-
-  const removeMetric = (index: number) => {
-    const newMetrics = [...(formData.metrics || [])];
-    newMetrics.splice(index, 1);
-    setFormData({ ...formData, metrics: newMetrics });
-  };
-
-  const updateMetric = (index: number, field: 'label' | 'value', text: string) => {
-    const newMetrics = [...(formData.metrics || [])];
-    newMetrics[index] = { ...newMetrics[index], [field]: text };
-    setFormData({ ...formData, metrics: newMetrics });
+  const handleMediaError = () => {
+    setIsMediaLoading(false);
+    // Only set error if we are not loading an iframe (which often throws false positives cross-origin)
+    const isIframe = previewMedia.url && (previewMedia.url.includes('drive.google.com') || previewMedia.url.includes('youtube') || previewMedia.url.includes('youtu.be'));
+    if (!isIframe) {
+      setMediaError("Impossible de charger le média. Vérifiez le lien (accès public requis).");
+    }
   };
 
   const sizeOptions = [
@@ -120,6 +181,17 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
     { id: 'wide', label: 'Horizontal', icon: RectangleHorizontal, class: 'aspect-video' },
     { id: 'large', label: 'Large', icon: LayoutGrid, class: 'aspect-square' },
   ];
+
+  // Helper to check for iframe sources
+  const getEmbedUrl = (url: string) => {
+    const driveMatch = url.match(/(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?.*id=)([a-zA-Z0-9_-]+)/);
+    if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+    
+    const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
+    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}?autoplay=1&mute=1&loop=1`;
+    
+    return null;
+  };
 
   return (
     <div 
@@ -227,29 +299,46 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
              <div className="bg-gray-100 rounded-2xl aspect-[9/16] md:aspect-square overflow-hidden relative shadow-inner flex items-center justify-center border border-gray-200">
                 {previewMedia.url ? (
                   <>
-                    {isMediaLoading && (
+                    {isMediaLoading && !mediaError && (
                       <div className="absolute inset-0 flex items-center justify-center bg-gray-100 z-10">
                         <Loader2 className="w-8 h-8 text-brand-accent animate-spin" />
                       </div>
                     )}
-                    {previewMedia.type === 'image' ? (
+                    
+                    {mediaError ? (
+                      <div className="text-center p-4 text-red-500 animate-fade-in px-6">
+                        <AlertCircle className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-xs font-bold leading-tight">{mediaError}</p>
+                      </div>
+                    ) : previewMedia.type === 'image' ? (
                        <img 
                         src={previewMedia.url} 
                         alt="Preview" 
                         onLoad={() => setIsMediaLoading(false)}
-                        onError={() => setIsMediaLoading(false)}
+                        onError={handleMediaError}
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <video 
-                        src={previewMedia.url} 
-                        muted 
-                        loop 
-                        autoPlay
-                        playsInline
-                        onLoadedData={() => setIsMediaLoading(false)}
-                        className="w-full h-full object-cover"
-                      />
+                      // Video Preview Logic
+                      getEmbedUrl(previewMedia.url) ? (
+                        <iframe
+                          src={getEmbedUrl(previewMedia.url)!}
+                          className="w-full h-full border-0"
+                          onLoad={() => setIsMediaLoading(false)}
+                          title="Preview"
+                        />
+                      ) : (
+                        <video 
+                          src={previewMedia.url} 
+                          muted 
+                          loop 
+                          autoPlay
+                          playsInline
+                          onLoadedData={() => setIsMediaLoading(false)}
+                          onError={handleMediaError}
+                          className="w-full h-full object-cover"
+                        />
+                      )
                     )}
                   </>
                 ) : (
@@ -265,10 +354,17 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
              <button
                 type="submit"
                 form="project-form"
-                disabled={isSaving}
-                className="w-full bg-brand-black hover:bg-brand-accent text-white font-black text-lg py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed mt-auto"
+                disabled={isSaving || isValidating}
+                className={`w-full text-white font-black text-lg py-5 rounded-2xl flex items-center justify-center gap-3 transition-all shadow-xl hover:shadow-2xl active:scale-95 disabled:opacity-80 disabled:cursor-not-allowed mt-auto ${
+                  mediaError && !isSaving && !isValidating ? 'bg-red-500 hover:bg-red-600' : 'bg-brand-black hover:bg-brand-accent'
+                }`}
               >
-                {isSaving ? (
+                {isValidating ? (
+                   <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Vérification...
+                  </>
+                ) : isSaving ? (
                   <>
                     <Loader2 className="w-5 h-5 animate-spin" />
                     Sauvegarde...
@@ -276,7 +372,7 @@ export const ProjectFormModal: React.FC<ProjectFormModalProps> = ({ isOpen, onCl
                 ) : (
                   <>
                     <Save className="w-5 h-5" />
-                    Enregistrer
+                    {mediaError ? 'Forcer' : 'Enregistrer'}
                   </>
                 )}
               </button>

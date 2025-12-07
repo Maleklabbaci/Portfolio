@@ -45,7 +45,7 @@ const FALLBACK_PROJECTS: Project[] = [
 ];
 
 // Version des données (Incrémenté pour forcer le refresh)
-const DATA_VERSION = 'v13';
+const DATA_VERSION = 'v21';
 
 interface AdminContextType {
   isAdmin: boolean;
@@ -174,7 +174,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .insert([{
           title: project.title,
           category: project.category,
-          image_url: cleanImageUrl, // Peut être vide
+          image_url: cleanImageUrl || null, // ENVOI DE NULL SI VIDE, PAS ''
           video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
@@ -225,7 +225,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .update({
           title: project.title,
           category: project.category,
-          image_url: cleanImageUrl,
+          image_url: cleanImageUrl || null, // ENVOI DE NULL SI VIDE
           video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
