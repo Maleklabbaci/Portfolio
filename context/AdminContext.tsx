@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { supabase, isSupabaseConfigured } from '../services/supabaseClient';
@@ -44,7 +45,7 @@ const FALLBACK_PROJECTS: Project[] = [
 ];
 
 // Version des données (Incrémenté pour forcer le refresh)
-const DATA_VERSION = 'v10';
+const DATA_VERSION = 'v13';
 
 interface AdminContextType {
   isAdmin: boolean;
@@ -60,14 +61,19 @@ interface AdminContextType {
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
-// Helper transformation lien Video
-const processVideoUrl = (url?: string): string | undefined => {
+// Helper transformation lien Google Drive (Image OU Vidéo) - EXPORTÉ pour être utilisé dans le Modal
+export const processGoogleDriveLink = (url?: string): string | undefined => {
   if (!url || url.trim() === '') return undefined;
+
+  // Détection des liens Google Drive
   const driveIdRegex = /(?:drive\.google\.com\/(?:file\/d\/|open\?id=)|drive\.google\.com\/uc\?id=)([a-zA-Z0-9_-]+)/;
   const match = url.match(driveIdRegex);
+
   if (match && match[1]) {
+    // Conversion en lien de téléchargement direct pour lecture HTML5 / Affichage IMG
     return `https://drive.google.com/uc?export=download&id=${match[1]}`;
   }
+
   return url;
 };
 
@@ -114,7 +120,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           id: p.id.toString(),
           title: p.title,
           category: p.category as ProjectCategory,
-          imageUrl: p.image_url,
+          imageUrl: p.image_url || undefined,
           videoUrl: p.video_url,
           client: p.client,
           description: p.description,
@@ -152,11 +158,13 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
   // --- CRUD ACTIONS ---
   const addProject = async (project: Project) => {
-    const cleanVideoUrl = processVideoUrl(project.videoUrl);
+    // Traitement automatique des liens Google Drive pour Vidéo ET Image
+    const cleanVideoUrl = processGoogleDriveLink(project.videoUrl);
+    const cleanImageUrl = processGoogleDriveLink(project.imageUrl) || project.imageUrl || ''; // Empty string if missing
 
     if (!isSupabaseConfigured) {
       alert("⚠️ ATTENTION: Vos clés Supabase ne sont pas configurées correctement.\n\nLe projet sera ajouté TEMPORAIREMENT et disparaîtra au rechargement.");
-      setProjects(prev => [{ ...project, videoUrl: cleanVideoUrl }, ...prev]);
+      setProjects(prev => [{ ...project, imageUrl: cleanImageUrl, videoUrl: cleanVideoUrl }, ...prev]);
       return;
     }
 
@@ -166,7 +174,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .insert([{
           title: project.title,
           category: project.category,
-          image_url: project.imageUrl,
+          image_url: cleanImageUrl, // Peut être vide
           video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
@@ -192,19 +200,22 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       await fetchProjects();
-      alert("✅ Projet enregistré avec succès dans la base de données !");
+      // Pas d'alerte de succès pour le mode "Lazy" - C'est immédiat.
     } catch (error: any) {
       console.error("Erreur Ajout:", error);
       alert(`❌ Erreur lors de la sauvegarde : ${error.message}`);
+      throw error; // Re-throw pour que le formulaire sache qu'il y a eu une erreur
     }
   };
 
   const updateProject = async (project: Project) => {
-    const cleanVideoUrl = processVideoUrl(project.videoUrl);
+    // Traitement automatique des liens Google Drive pour Vidéo ET Image
+    const cleanVideoUrl = processGoogleDriveLink(project.videoUrl);
+    const cleanImageUrl = processGoogleDriveLink(project.imageUrl) || project.imageUrl || '';
 
     if (!isSupabaseConfigured) {
       alert("⚠️ ATTENTION: Supabase non configuré. Modification temporaire.");
-      setProjects(prev => prev.map(p => p.id === project.id ? { ...project, videoUrl: cleanVideoUrl } : p));
+      setProjects(prev => prev.map(p => p.id === project.id ? { ...project, imageUrl: cleanImageUrl, videoUrl: cleanVideoUrl } : p));
       return;
     }
 
@@ -214,7 +225,7 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         .update({
           title: project.title,
           category: project.category,
-          image_url: project.imageUrl,
+          image_url: cleanImageUrl,
           video_url: cleanVideoUrl,
           client: project.client,
           description: project.description,
@@ -236,10 +247,11 @@ export const AdminProvider: React.FC<{ children: ReactNode }> = ({ children }) =
       }
 
       await fetchProjects();
-      alert("✅ Modification enregistrée !");
+      // Pas d'alerte de succès
     } catch (error: any) {
       console.error("Erreur Update:", error);
       alert(`❌ Erreur modification : ${error.message}`);
+      throw error;
     }
   };
 

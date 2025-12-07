@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectCategory } from '../types';
 import { useAdmin } from '../context/AdminContext';
@@ -63,31 +64,24 @@ export const PortfolioGallery: React.FC = () => {
     setIsFormOpen(true);
   };
 
-  const handleSaveProject = (project: Project) => {
+  const handleSaveProject = async (project: Project) => {
     if (editingProject) {
-      updateProject(project);
+      await updateProject(project);
     } else {
-      addProject({ ...project, id: Date.now().toString() });
+      await addProject({ ...project, id: Date.now().toString() });
     }
   };
 
   const handleMouseEnter = async (e: React.MouseEvent<HTMLDivElement>, hasVideo: boolean) => {
     if (hasVideo) {
-      const video = e.currentTarget.querySelector('video');
+      const video = e.currentTarget.querySelector('video.hover-preview');
       if (video) {
         try {
-          // If video previously errored, don't try to play
-          if (video.error) return;
-
-          video.currentTime = 0;
-          await video.play();
+          if ((video as HTMLVideoElement).error) return;
+          (video as HTMLVideoElement).currentTime = 0;
+          await (video as HTMLVideoElement).play();
         } catch (err) {
-          // Ignore AbortError which happens when mouse leaves quickly
-          // Also ignore NotSupportedError which happens if source is missing/bad
-          const errorName = (err as Error).name;
-          if (errorName !== 'AbortError' && errorName !== 'NotSupportedError') {
-            console.warn("Video preview playback prevented:", errorName);
-          }
+          // Ignore play errors
         }
       }
     }
@@ -95,10 +89,10 @@ export const PortfolioGallery: React.FC = () => {
 
   const handleMouseLeave = (e: React.MouseEvent<HTMLDivElement>, hasVideo: boolean) => {
     if (hasVideo) {
-      const video = e.currentTarget.querySelector('video');
+      const video = e.currentTarget.querySelector('video.hover-preview');
       if (video) {
         try {
-          video.pause();
+          (video as HTMLVideoElement).pause();
         } catch (e) {
           // Ignore pause errors
         }
@@ -117,10 +111,9 @@ export const PortfolioGallery: React.FC = () => {
     <section id="work" className="py-24 bg-brand-light min-h-screen relative">
       <div className="container mx-auto px-4">
         
-        {/* Navigation Filters & Admin Controls - Centered Layout */}
+        {/* Navigation Filters & Admin Controls */}
         <div className="sticky top-24 z-30 mb-16">
           <div className="relative flex justify-center items-center">
-            {/* Filters Centered */}
             <div className="flex overflow-x-auto gap-2 no-scrollbar bg-white/90 backdrop-blur-md p-2 rounded-2xl shadow-sm border border-gray-100 max-w-full">
               {categories.map((cat) => (
                 <button
@@ -137,7 +130,6 @@ export const PortfolioGallery: React.FC = () => {
               ))}
             </div>
 
-            {/* Admin Button - Absolute Right on Desktop, Stacked on Mobile */}
             {isAdmin && (
               <div className="absolute right-0 top-1/2 -translate-y-1/2 hidden lg:block">
                 <button 
@@ -151,7 +143,6 @@ export const PortfolioGallery: React.FC = () => {
             )}
           </div>
           
-          {/* Mobile Admin Button */}
           {isAdmin && (
             <div className="lg:hidden mt-4 flex justify-center">
                <button 
@@ -168,41 +159,59 @@ export const PortfolioGallery: React.FC = () => {
         {/* Masonry/Bento Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[350px]">
           {filteredProjects.map((project) => {
-            const isVideoProject = (project.category === ProjectCategory.REELS || project.category === ProjectCategory.VIDEO) && !!project.videoUrl;
+            const hasVideo = !!project.videoUrl;
+            const hasImage = !!project.imageUrl;
+            // Video preview is relevant if we have a video URL.
+            // If we have an image, video is hidden until hover.
+            // If we NO image, video is displayed as base.
+            const isHoverPreview = hasVideo && hasImage;
 
             return (
               <div
                 key={project.id}
                 onClick={() => handleProjectClick(project)}
-                onMouseEnter={(e) => handleMouseEnter(e, isVideoProject)}
-                onMouseLeave={(e) => handleMouseLeave(e, isVideoProject)}
+                onMouseEnter={(e) => handleMouseEnter(e, isHoverPreview)}
+                onMouseLeave={(e) => handleMouseLeave(e, isHoverPreview)}
                 className={`group relative rounded-3xl overflow-hidden bg-white shadow-sm hover:shadow-2xl hover:shadow-blue-900/10 cursor-pointer transition-all duration-500 active:scale-[0.98] ${getGridClass(project.size)}`}
               >
-                {/* Background Image */}
-                <img
-                  src={project.imageUrl}
-                  alt={project.title}
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 z-0 relative"
-                />
+                {/* Background Media */}
+                {hasImage ? (
+                   <img
+                    src={project.imageUrl}
+                    alt={project.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 z-0 relative"
+                  />
+                ) : hasVideo ? (
+                   <video
+                    src={project.videoUrl}
+                    muted
+                    loop
+                    autoPlay
+                    playsInline
+                    className="w-full h-full object-cover z-0 relative"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-300">
+                    <Maximize2 className="w-12 h-12" />
+                  </div>
+                )}
 
-                {/* Video Preview Layer (Lazy loaded) */}
-                {isVideoProject && (
+                {/* Video Preview Layer (Only if we have an image covering it) */}
+                {isHoverPreview && (
                   <video
                     src={project.videoUrl}
                     muted
                     loop
                     playsInline
                     preload="none"
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none';
-                    }}
-                    className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"
+                    onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    className="hover-preview absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-500 z-10 pointer-events-none"
                   />
                 )}
                 
-                {/* Admin Overlay Controls (Highest Z-index) */}
+                {/* Admin Overlay Controls */}
                 {isAdmin && (
                   <div className="absolute top-3 right-3 z-40 flex gap-2">
                     <button 
@@ -222,9 +231,8 @@ export const PortfolioGallery: React.FC = () => {
                   </div>
                 )}
 
-                {/* Content Overlay (High Z-index) */}
+                {/* Content Overlay */}
                 <div className="absolute inset-0 z-20 bg-gradient-to-t from-brand-black/90 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-8 pointer-events-none">
-                  
                   <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300">
                     <div className="flex items-center gap-2 mb-3">
                        <span className="text-white text-[10px] font-bold uppercase tracking-wider bg-brand-accent px-3 py-1 rounded-full shadow-lg">
@@ -235,7 +243,7 @@ export const PortfolioGallery: React.FC = () => {
                     <h3 className="text-2xl font-black text-white leading-tight mb-1 drop-shadow-md">{project.title}</h3>
                     <p className="text-gray-300 font-medium text-sm mb-4 drop-shadow-sm">{project.client}</p>
 
-                    {/* Metrics Display */}
+                    {/* Metrics */}
                     {project.metrics && (
                       <div className="flex flex-wrap gap-2 mt-2">
                         {project.metrics.map((m, idx) => (
@@ -247,17 +255,6 @@ export const PortfolioGallery: React.FC = () => {
                       </div>
                     )}
                   </div>
-
-                  {/* Icons based on category */}
-                  <div className="absolute top-6 left-6 opacity-0 group-hover:opacity-100 transition-all duration-300 transform -translate-y-4 group-hover:translate-y-0">
-                     <div className="w-12 h-12 bg-white/10 backdrop-blur-md border border-white/20 rounded-full flex items-center justify-center">
-                       {project.category === ProjectCategory.REELS && <Instagram className="text-white w-6 h-6" />}
-                       {project.category === ProjectCategory.VIDEO && <Play className="text-white w-6 h-6 fill-white" />}
-                       {project.category === ProjectCategory.ADS && <TrendingUp className="text-white w-6 h-6" />}
-                       {(project.category === ProjectCategory.PHOTO || project.category === ProjectCategory.DESIGN) && <Maximize2 className="text-white w-6 h-6" />}
-                     </div>
-                  </div>
-
                 </div>
               </div>
             );
@@ -294,14 +291,15 @@ export const PortfolioGallery: React.FC = () => {
           >
             {/* Media Area */}
             <div className="flex-1 bg-black flex items-center justify-center relative min-h-[400px] bg-grid-white/[0.05]">
-              {(viewingProject.category === ProjectCategory.REELS || viewingProject.category === ProjectCategory.VIDEO) && viewingProject.videoUrl ? (
+              {/* Prioritize Video in Viewer if available */}
+              {viewingProject.videoUrl ? (
                 <video 
                   src={viewingProject.videoUrl} 
                   controls 
                   autoPlay 
                   className={`max-h-[85vh] w-full ${viewingProject.category === ProjectCategory.REELS ? 'object-contain max-w-sm mx-auto' : 'object-contain'}`}
                 />
-              ) : (
+              ) : viewingProject.imageUrl ? (
                  <img 
                   src={viewingProject.imageUrl} 
                   alt={viewingProject.title} 
@@ -309,6 +307,8 @@ export const PortfolioGallery: React.FC = () => {
                   decoding="async"
                   className="w-full h-full max-h-[85vh] object-contain"
                 />
+              ) : (
+                <div className="text-white">Media non disponible</div>
               )}
             </div>
 
@@ -353,13 +353,22 @@ export const PortfolioGallery: React.FC = () => {
                            className="group cursor-pointer"
                          >
                            <div className="aspect-[4/3] rounded-xl overflow-hidden mb-2 relative bg-gray-100">
-                             <img 
-                               src={simProject.imageUrl} 
-                               alt={simProject.title}
-                               loading="lazy"
-                               decoding="async"
-                               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                             />
+                             {/* Show Image OR Video if no image for similar projects */}
+                             {simProject.imageUrl ? (
+                                <img 
+                                  src={simProject.imageUrl} 
+                                  alt={simProject.title}
+                                  loading="lazy"
+                                  decoding="async"
+                                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                                />
+                             ) : (
+                                <video 
+                                  src={simProject.videoUrl} 
+                                  muted 
+                                  className="w-full h-full object-cover"
+                                />
+                             )}
                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
                            </div>
                            <h4 className="text-sm font-bold text-brand-black leading-tight group-hover:text-brand-accent transition-colors">

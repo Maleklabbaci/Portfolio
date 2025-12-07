@@ -11,7 +11,7 @@ export interface Project {
   id: string;
   title: string;
   category: ProjectCategory;
-  imageUrl: string;
+  imageUrl?: string; // Optional now
   client?: string;
   description?: string;
   metrics?: { label: string; value: string }[];
