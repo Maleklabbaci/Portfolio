@@ -36,9 +36,11 @@ const SmartVideoPlayer: React.FC<{
   useEffect(() => {
     if (videoRef.current) {
       if (isVisible && autoPlay) {
-        videoRef.current.currentTime = 0;
-        videoRef.current.muted = true;
-        videoRef.current.loop = true;
+        // FORCER LES PROPRIÉTÉS AU DÉMARRAGE
+        videoRef.current.currentTime = 0; // Redémarrer du début
+        videoRef.current.muted = true;    // Muet obligatoire
+        videoRef.current.loop = true;     // Boucle
+        
         const playPromise = videoRef.current.play();
         if (playPromise !== undefined) {
             playPromise.catch(() => {
@@ -47,9 +49,13 @@ const SmartVideoPlayer: React.FC<{
         }
       } else {
         videoRef.current.pause();
+        if (!isVisible) {
+           // Optionnel : remettre à 0 quand ça sort de l'écran
+           videoRef.current.currentTime = 0;
+        }
       }
     }
-  }, [isVisible, autoPlay]);
+  }, [isVisible, autoPlay]); // Se déclenche quand la visibilité ou l'autoplay change
 
   if (hasError) {
     return (
@@ -106,6 +112,7 @@ const SmartVideoPlayer: React.FC<{
         muted
         loop
         playsInline
+        preload="metadata"
         controls={controls}
         onError={() => setHasError(true)}
       />
